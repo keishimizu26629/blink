@@ -1,22 +1,24 @@
+uniffi::setup_scaffolding!();
+
 /// ファイルノード（ツリー表示用）
-#[derive(Debug, Clone, PartialEq)]
+/// children はSwift側で管理するため、FFI境界では含めない
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct FileNode {
     pub id: String,
     pub path: String,
     pub name: String,
     pub kind: NodeKind,
-    pub children: Option<Vec<FileNode>>,
 }
 
 /// ノード種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum NodeKind {
     File,
     Dir,
 }
 
 /// シンタックスハイライト用トークン
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct TokenSpan {
     pub line: u32,
     pub start_col: u32,
@@ -25,7 +27,7 @@ pub struct TokenSpan {
 }
 
 /// トークン種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum TokenType {
     Keyword,
     String,
@@ -40,7 +42,7 @@ pub enum TokenType {
 }
 
 /// Git Blame 行情報
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct BlameLine {
     pub line: u32,
     pub author: String,
@@ -60,31 +62,20 @@ mod tests {
             path: "/src/main.rs".into(),
             name: "main.rs".into(),
             kind: NodeKind::File,
-            children: None,
         };
         assert_eq!(node.name, "main.rs");
         assert_eq!(node.kind, NodeKind::File);
-        assert!(node.children.is_none());
     }
 
     #[test]
-    fn dir_node_with_children() {
-        let child = FileNode {
-            id: "child1".into(),
-            path: "/src/lib.rs".into(),
-            name: "lib.rs".into(),
-            kind: NodeKind::File,
-            children: None,
-        };
+    fn dir_node_creation() {
         let dir = FileNode {
             id: "dir1".into(),
             path: "/src".into(),
             name: "src".into(),
             kind: NodeKind::Dir,
-            children: Some(vec![child]),
         };
         assert_eq!(dir.kind, NodeKind::Dir);
-        assert_eq!(dir.children.as_ref().unwrap().len(), 1);
     }
 
     #[test]

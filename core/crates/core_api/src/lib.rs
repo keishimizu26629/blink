@@ -2,7 +2,10 @@ use std::path::Path;
 
 use core_types::{BlameLine, FileNode, TokenSpan};
 
+uniffi::setup_scaffolding!();
+
 /// プロジェクトを開く（MVPではルートパスをそのまま返す）
+#[uniffi::export]
 pub fn open_project(root_path: String) -> Result<String, String> {
     let path = Path::new(&root_path);
     if !path.exists() {
@@ -15,11 +18,13 @@ pub fn open_project(root_path: String) -> Result<String, String> {
 }
 
 /// ディレクトリ内のファイル一覧を返す
+#[uniffi::export]
 pub fn list_dir(root_path: String, dir_path: String) -> Result<Vec<FileNode>, String> {
     core_fs::list_dir(&root_path, &dir_path)
 }
 
 /// ファイルの内容を文字列として読み込む
+#[uniffi::export]
 pub fn read_file(path: String) -> Result<String, String> {
     let p = Path::new(&path);
     if !p.exists() {
@@ -32,6 +37,7 @@ pub fn read_file(path: String) -> Result<String, String> {
 }
 
 /// シンタックスハイライト: ファイルを読み込み、指定範囲のトークンを返す
+#[uniffi::export]
 pub fn highlight_range(
     path: String,
     start_line: u32,
@@ -53,6 +59,7 @@ pub fn highlight_range(
 
 /// Git Blame: 指定範囲の行に対する blame 情報を返す
 /// 非Gitリポジトリの場合は空Vecを返す（エラーにしない）
+#[uniffi::export]
 pub fn blame_range(path: String, start_line: u32, end_line: u32) -> Result<Vec<BlameLine>, String> {
     match core_git::blame_file(&path) {
         Ok(lines) => Ok(lines
