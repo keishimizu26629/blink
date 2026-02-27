@@ -157,7 +157,6 @@ mod tests {
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert!(!tokens.is_empty());
-        // 全トークンが指定範囲内であることを確認
         assert!(tokens.iter().all(|t| t.line >= 1 && t.line <= 2));
     }
 
@@ -167,7 +166,6 @@ mod tests {
         let file_path = tmp.path().join("test.ts");
         fs::write(&file_path, "const a = 1;\nconst b = 2;\nconst c = 3;").unwrap();
 
-        // 2行目のみ取得
         let result = highlight_range(file_path.to_str().unwrap().to_string(), 2, 2);
         assert!(result.is_ok());
         let tokens = result.unwrap();
@@ -177,7 +175,6 @@ mod tests {
 
     #[test]
     fn blame_range_non_git_returns_empty() {
-        // 非Gitリポジトリのファイルに対しては空Vecを返す
         let result = blame_range("/tmp/nonexistent_file.rs".to_string(), 1, 10);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());

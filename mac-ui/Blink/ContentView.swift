@@ -32,7 +32,7 @@ struct ContentView: View {
                         Divider()
                     }
 
-                    CodeTextView(text: content)
+                    CodeTextView(text: content, tokens: viewModel.highlightTokens)
                 }
             } else {
                 Text("ファイルを選択してください")

@@ -7,6 +7,7 @@ final class ProjectViewModel: ObservableObject {
     @Published var fileContent: String?
     @Published var isBlameVisible: Bool = false
     @Published var blameLines: [BlameLineInfo] = []
+    @Published var highlightTokens: [TokenSpan] = []
 
     /// プロジェクトを開く
     func openProject(path: String) async {
@@ -21,6 +22,9 @@ final class ProjectViewModel: ObservableObject {
 
         // TODO: Replace with UniFFI call — read_file(path:)
         fileContent = Self.mockFileContent(for: node.path)
+
+        // TODO: Replace with UniFFI call — highlight_range(path:, start_line:, end_line:)
+        highlightTokens = Self.mockHighlightTokens(for: node.path, content: fileContent)
 
         // TODO: Replace with UniFFI call — blame_range(path:, start_line:, end_line:)
         blameLines = Self.mockBlameLines(for: node.path)
@@ -117,7 +121,6 @@ final class ProjectViewModel: ObservableObject {
     }
 
     static func mockBlameLines(for _: String) -> [BlameLineInfo] {
-        // モックデータ: 実際にはUniFFI経由でblame_range()を呼ぶ
         (1 ... 10).map { line in
             BlameLineInfo(
                 line: UInt32(line),
@@ -127,6 +130,40 @@ final class ProjectViewModel: ObservableObject {
                 commit: line <= 5 ? "abcdef1" : "1234567",
             )
         }
+    }
+
+    static func mockHighlightTokens(for path: String, content: String?) -> [TokenSpan] {
+        guard let content, !content.isEmpty else { return [] }
+        let ext = (path as NSString).pathExtension.lowercased()
+
+        guard ["js", "jsx", "ts", "tsx"].contains(ext) else { return [] }
+
+        var tokens: [TokenSpan] = []
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
+
+        let keywords = ["const", "let", "var", "function", "return", "if", "else", "for",
+                        "while", "import", "export", "from", "class", "interface", "type"]
+
+        for (lineIndex, line) in lines.enumerated() {
+            let lineNum = UInt32(lineIndex + 1)
+            let lineStr = String(line)
+
+            for keyword in keywords {
+                var searchStart = lineStr.startIndex
+                while let range = lineStr.range(of: keyword, range: searchStart ..< lineStr.endIndex) {
+                    let col = UInt32(lineStr.distance(from: lineStr.startIndex, to: range.lowerBound))
+                    tokens.append(TokenSpan(
+                        line: lineNum,
+                        startCol: col,
+                        endCol: col + UInt32(keyword.count),
+                        tokenType: .keyword,
+                    ))
+                    searchStart = range.upperBound
+                }
+            }
+        }
+
+        return tokens
     }
 
     static func mockFileContent(for path: String) -> String {
