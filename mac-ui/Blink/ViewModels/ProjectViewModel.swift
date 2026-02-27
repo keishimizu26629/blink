@@ -8,8 +8,17 @@ final class ProjectViewModel: ObservableObject {
     @Published var isBlameVisible: Bool = false
     @Published var blameLines: [BlameLine] = []
     @Published var highlightTokens: [TokenSpan] = []
+    @Published var errorMessage: String?
 
     private var rootPath: String = ""
+    private var securityScopedDirectoryURL: URL?
+    private var hasActiveSecurityScope = false
+
+    /// Security-scoped URL からプロジェクトを開く
+    func openProject(url: URL) async {
+        updateSecurityScope(for: url)
+        await openProject(path: url.path)
+    }
 
     /// プロジェクトを開く
     func openProject(path: String) async {
@@ -18,9 +27,19 @@ final class ProjectViewModel: ObservableObject {
             _ = try Blink.openProject(rootPath: path)
             let fileNodes = try listDir(rootPath: path, dirPath: path)
             rootNodes = fileNodes.map { TreeNode(node: $0) }
+            selectedFile = nil
+            fileContent = nil
+            highlightTokens = []
+            blameLines = []
+            errorMessage = nil
         } catch {
             print("Failed to open project: \(error)")
             rootNodes = []
+            selectedFile = nil
+            fileContent = nil
+            highlightTokens = []
+            blameLines = []
+            errorMessage = "フォルダを開けませんでした: \(error.localizedDescription)"
         }
     }
 
@@ -86,5 +105,19 @@ final class ProjectViewModel: ObservableObject {
             }
             return treeNode
         }
+    }
+
+    private func updateSecurityScope(for selectedURL: URL) {
+        let directoryPath = selectedURL.path
+        if securityScopedDirectoryURL?.path == directoryPath {
+            return
+        }
+
+        if hasActiveSecurityScope, let currentURL = securityScopedDirectoryURL {
+            currentURL.stopAccessingSecurityScopedResource()
+        }
+
+        hasActiveSecurityScope = selectedURL.startAccessingSecurityScopedResource()
+        securityScopedDirectoryURL = selectedURL
     }
 }
