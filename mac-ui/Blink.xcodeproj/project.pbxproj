@@ -35,6 +35,11 @@
 			path = Blink;
 			sourceTree = "<group>";
 		};
+		EC2A00012F51CBFC00C1E6F1 /* Generated */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Generated;
+			sourceTree = "<group>";
+		};
 		EC1D15922F51CBFD00C1E6F1 /* BlinkTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = BlinkTests;
@@ -76,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				EC1D15802F51CBFC00C1E6F1 /* Blink */,
+				EC2A00012F51CBFC00C1E6F1 /* Generated */,
 				EC1D15922F51CBFD00C1E6F1 /* BlinkTests */,
 				EC1D159C2F51CBFD00C1E6F1 /* BlinkUITests */,
 				EC1D157F2F51CBFC00C1E6F1 /* Products */,
@@ -109,6 +115,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				EC1D15802F51CBFC00C1E6F1 /* Blink */,
+				EC2A00012F51CBFC00C1E6F1 /* Generated */,
 			);
 			name = Blink;
 			packageProductDependencies = (
@@ -401,15 +408,26 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Generated",
+				);
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(SRCROOT)/RustLib/libcore_api_universal.a",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.inoworl.Blink;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Generated";
+				SWIFT_OBJC_BRIDGING_HEADER = "Blink/Blink-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -428,15 +446,26 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Generated",
+				);
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(SRCROOT)/RustLib/libcore_api_universal.a",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.inoworl.Blink;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Generated";
+				SWIFT_OBJC_BRIDGING_HEADER = "Blink/Blink-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

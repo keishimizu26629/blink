@@ -1,36 +1,9 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Token Models (UniFFI 接続前の Swift 側定義)
-
-/// Rust 側 TokenType に対応する列挙型
-/// TODO: UniFFI bindings 生成後、生成された型に置き換え
-enum TokenType: String {
-    case keyword = "Keyword"
-    case string = "String"
-    case comment = "Comment"
-    case type_ = "Type"
-    case function = "Function"
-    case number = "Number"
-    case operator_ = "Operator"
-    case punctuation = "Punctuation"
-    case variable = "Variable"
-    case plain = "Plain"
-}
-
-/// Rust 側 TokenSpan に対応する構造体
-/// TODO: UniFFI bindings 生成後、生成された型に置き換え
-struct TokenSpan {
-    let line: UInt32
-    let startCol: UInt32
-    let endCol: UInt32
-    let tokenType: TokenType
-}
-
 // MARK: - CodeTextView
 
 /// NSTextView を SwiftUI にブリッジする読み取り専用コードビューア
-/// TODO: BlameGutterView とのスクロール同期（Phase 3+）
 struct CodeTextView: NSViewRepresentable {
     let text: String
     let tokens: [TokenSpan]
@@ -53,11 +26,6 @@ struct CodeTextView: NSViewRepresentable {
         textView.backgroundColor = SyntaxTheme.backgroundColor
         textView.textColor = SyntaxTheme.defaultTextColor
         textView.insertionPointColor = SyntaxTheme.defaultTextColor
-
-        // 行番号（ruler）
-        scrollView.hasVerticalRuler = false
-        scrollView.hasHorizontalRuler = false
-        scrollView.rulersVisible = false
 
         // 行番号はカスタム ruler で表示
         let rulerView = LineNumberRulerView(textView: textView)
@@ -137,7 +105,7 @@ struct CodeTextView: NSViewRepresentable {
             guard start >= 0, length > 0, start + length <= fullText.length else { continue }
 
             let range = NSRange(location: start, length: length)
-            let color = SyntaxTheme.color(for: token.tokenType.rawValue)
+            let color = SyntaxTheme.color(for: token.tokenType)
             textStorage.addAttribute(.foregroundColor, value: color, range: range)
         }
 
@@ -213,7 +181,6 @@ final class LineNumberRulerView: NSRulerView {
         ]
 
         var lineNumber = 1
-        var index = 0
 
         // 可視範囲前の行数をカウント
         text.enumerateSubstrings(
@@ -250,7 +217,6 @@ final class LineNumberRulerView: NSRulerView {
             )
 
             lineNumber += 1
-            index += 1
         }
     }
 }

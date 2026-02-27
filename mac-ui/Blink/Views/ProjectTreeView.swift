@@ -1,10 +1,43 @@
 import SwiftUI
 
+// MARK: - TreeNode (UniFFI FileNode の UI 用ラッパー)
+
+/// UniFFI 生成の FileNode にツリー UI 管理用プロパティを追加
+struct TreeNode: Identifiable, Equatable {
+    let node: FileNode
+    var children: [TreeNode]?
+    var isExpanded: Bool = false
+
+    var id: String {
+        node.id
+    }
+
+    var path: String {
+        node.path
+    }
+
+    var name: String {
+        node.name
+    }
+
+    var kind: NodeKind {
+        node.kind
+    }
+
+    static func == (lhs: TreeNode, rhs: TreeNode) -> Bool {
+        lhs.id == rhs.id
+            && lhs.isExpanded == rhs.isExpanded
+            && lhs.children == rhs.children
+    }
+}
+
+// MARK: - ProjectTreeView
+
 struct ProjectTreeView: View {
-    let nodes: [FileNode]
+    let nodes: [TreeNode]
     let selectedFileId: String?
-    let onSelectFile: (FileNode) -> Void
-    let onToggleDir: (FileNode) -> Void
+    let onSelectFile: (TreeNode) -> Void
+    let onToggleDir: (TreeNode) -> Void
 
     var body: some View {
         List {
@@ -24,10 +57,10 @@ struct ProjectTreeView: View {
 // MARK: - FileNodeRow
 
 private struct FileNodeRow: View {
-    let node: FileNode
+    let node: TreeNode
     let selectedFileId: String?
-    let onSelectFile: (FileNode) -> Void
-    let onToggleDir: (FileNode) -> Void
+    let onSelectFile: (TreeNode) -> Void
+    let onToggleDir: (TreeNode) -> Void
 
     var body: some View {
         switch node.kind {
@@ -80,20 +113,4 @@ private struct FileNodeRow: View {
         default: return "doc"
         }
     }
-}
-
-// MARK: - FileNode Model
-
-enum NodeKind: Equatable {
-    case file
-    case dir
-}
-
-struct FileNode: Identifiable, Equatable {
-    let id: String
-    let path: String
-    let name: String
-    let kind: NodeKind
-    var children: [FileNode]?
-    var isExpanded: Bool = false
 }
