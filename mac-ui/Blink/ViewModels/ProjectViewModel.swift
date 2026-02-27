@@ -68,28 +68,28 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(rootPath)/src",
                 name: "src",
                 kind: .dir,
-                children: nil,
+                children: nil
             ),
             FileNode(
                 id: "2",
                 path: "\(rootPath)/Cargo.toml",
                 name: "Cargo.toml",
                 kind: .file,
-                children: nil,
+                children: nil
             ),
             FileNode(
                 id: "3",
                 path: "\(rootPath)/README.md",
                 name: "README.md",
                 kind: .file,
-                children: nil,
+                children: nil
             ),
             FileNode(
                 id: "4",
                 path: "\(rootPath)/.gitignore",
                 name: ".gitignore",
                 kind: .file,
-                children: nil,
+                children: nil
             ),
         ]
     }
@@ -101,35 +101,40 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(dirPath)/main.rs",
                 name: "main.rs",
                 kind: .file,
-                children: nil,
+                children: nil
             ),
             FileNode(
                 id: "\(dirPath)/lib.rs",
                 path: "\(dirPath)/lib.rs",
                 name: "lib.rs",
                 kind: .file,
-                children: nil,
+                children: nil
             ),
             FileNode(
                 id: "\(dirPath)/utils",
                 path: "\(dirPath)/utils",
                 name: "utils",
                 kind: .dir,
-                children: nil,
+                children: nil
             ),
         ]
     }
 
     static func mockBlameLines(for _: String) -> [BlameLineInfo] {
-        (1 ... 10).map { line in
-            BlameLineInfo(
+        var lines: [BlameLineInfo] = []
+        lines.reserveCapacity(10)
+        for line in 1 ... 10 {
+            let isFirstHalf = line <= 5
+            let info = BlameLineInfo(
                 line: UInt32(line),
-                author: line <= 5 ? "Alice" : "Bob",
-                authorTime: line <= 5 ? 1_700_000_000 : 1_700_100_000,
-                summary: line <= 5 ? "initial commit" : "fix: update logic",
-                commit: line <= 5 ? "abcdef1" : "1234567",
+                author: isFirstHalf ? "Alice" : "Bob",
+                authorTime: isFirstHalf ? 1_700_000_000 : 1_700_100_000,
+                summary: isFirstHalf ? "initial commit" : "fix: update logic",
+                commit: isFirstHalf ? "abcdef1" : "1234567"
             )
+            lines.append(info)
         }
+        return lines
     }
 
     static func mockHighlightTokens(for path: String, content: String?) -> [TokenSpan] {
@@ -156,7 +161,7 @@ final class ProjectViewModel: ObservableObject {
                         line: lineNum,
                         startCol: col,
                         endCol: col + UInt32(keyword.count),
-                        tokenType: .keyword,
+                        tokenType: .keyword
                     ))
                     searchStart = range.upperBound
                 }

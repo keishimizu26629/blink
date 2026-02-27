@@ -17,7 +17,7 @@ struct ContentView: View {
                     Task {
                         await viewModel.toggleDir(node: node)
                     }
-                },
+                }
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
         } detail: {
@@ -53,7 +53,7 @@ struct ContentView: View {
                 } label: {
                     Label(
                         "Blame",
-                        systemImage: viewModel.isBlameVisible ? "person.fill" : "person",
+                        systemImage: viewModel.isBlameVisible ? "person.fill" : "person"
                     )
                 }
                 .help("Git Blame の表示切替")

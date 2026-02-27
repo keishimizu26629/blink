@@ -257,6 +257,7 @@ dependencies = [
  "core_highlight",
  "core_types",
  "tempfile",
+ "thiserror",
  "uniffi",
 ]
 

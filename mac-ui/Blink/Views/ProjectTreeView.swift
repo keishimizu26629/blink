@@ -13,7 +13,7 @@ struct ProjectTreeView: View {
                     node: node,
                     selectedFileId: selectedFileId,
                     onSelectFile: onSelectFile,
-                    onToggleDir: onToggleDir,
+                    onToggleDir: onToggleDir
                 )
             }
         }
@@ -35,8 +35,8 @@ private struct FileNodeRow: View {
             DisclosureGroup(
                 isExpanded: Binding(
                     get: { node.isExpanded },
-                    set: { _ in onToggleDir(node) },
-                ),
+                    set: { _ in onToggleDir(node) }
+                )
             ) {
                 if let children = node.children {
                     ForEach(children) { child in
@@ -44,7 +44,7 @@ private struct FileNodeRow: View {
                             node: child,
                             selectedFileId: selectedFileId,
                             onSelectFile: onSelectFile,
-                            onToggleDir: onToggleDir,
+                            onToggleDir: onToggleDir
                         )
                     }
                 }
@@ -62,7 +62,7 @@ private struct FileNodeRow: View {
             .background(
                 node.id == selectedFileId
                     ? Color.accentColor.opacity(0.15)
-                    : Color.clear,
+                    : Color.clear
             )
             .cornerRadius(4)
         }
