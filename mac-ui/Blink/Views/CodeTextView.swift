@@ -15,7 +15,7 @@ struct CodeTextView: NSViewRepresentable {
             return scrollView
         }
 
-        // 読み取り専用
+        // 読み取り専用・選択可能
         textView.isEditable = false
         textView.isSelectable = true
 
@@ -27,23 +27,38 @@ struct CodeTextView: NSViewRepresentable {
         textView.textColor = SyntaxTheme.defaultTextColor
         textView.insertionPointColor = SyntaxTheme.defaultTextColor
 
-        // 行番号はカスタム ruler で表示
-        let rulerView = LineNumberRulerView(textView: textView)
-        scrollView.verticalRulerView = rulerView
-        scrollView.hasVerticalRuler = true
-        scrollView.rulersVisible = true
+        // スクローラー設定
+        scrollView.hasHorizontalScroller = true
+        scrollView.hasVerticalScroller = true
 
-        // 自動折り返しを無効化（水平スクロール可能に）
+        // 水平スクロール対応（コード折り返しなし）
         textView.isHorizontallyResizable = true
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+
+        // autoresizingMask: SwiftUIがscrollViewのサイズを変更した際に
+        // 内部のtextViewが追従してリサイズされるために必須
+        textView.autoresizingMask = [.width, .height]
+
+        // minSize: scrollViewの表示領域に合わせて初期サイズを確保
+        let contentSize = scrollView.contentSize
+        textView.minSize = NSSize(width: contentSize.width, height: contentSize.height)
+        textView.maxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+
+        // テキストコンテナ: 折り返し無効（水平方向は無限幅）
         textView.textContainer?.widthTracksTextView = false
         textView.textContainer?.containerSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
             height: CGFloat.greatestFiniteMagnitude
         )
 
-        scrollView.hasHorizontalScroller = true
-        scrollView.hasVerticalScroller = true
+        // 行番号はカスタム ruler で表示
+        let rulerView = LineNumberRulerView(textView: textView)
+        scrollView.verticalRulerView = rulerView
+        scrollView.hasVerticalRuler = true
+        scrollView.rulersVisible = true
 
         return scrollView
     }
@@ -51,8 +66,19 @@ struct CodeTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context _: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
 
-        // テキストをセット
-        textView.string = text
+        // テキストが同じ場合はハイライトだけ再適用（不要な再設定を防ぐ）
+        if textView.string == text {
+            applySyntaxHighlight(to: textView)
+            if let rulerView = scrollView.verticalRulerView as? LineNumberRulerView {
+                rulerView.needsDisplay = true
+            }
+            return
+        }
+
+        // textStorage経由でテキストを安全に置換
+        // （textView.string = text はtypingAttributesでリセットされるため使わない）
+        let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+        textView.textStorage?.replaceCharacters(in: fullRange, with: text)
 
         // シンタックスハイライトを適用
         applySyntaxHighlight(to: textView)
@@ -67,10 +93,11 @@ struct CodeTextView: NSViewRepresentable {
 
     /// TokenSpan 配列を NSTextStorage の属性に変換して適用する
     private func applySyntaxHighlight(to textView: NSTextView) {
-        guard !tokens.isEmpty else { return }
         guard let textStorage = textView.textStorage else { return }
 
         let fullText = textView.string as NSString
+        guard fullText.length > 0 else { return }
+
         let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
         // まずデフォルト属性をリセット
@@ -84,29 +111,32 @@ struct CodeTextView: NSViewRepresentable {
             range: fullRange
         )
 
-        // 各行の開始オフセットを事前計算
-        let lines = textView.string.split(separator: "\n", omittingEmptySubsequences: false)
-        var lineOffsets: [Int] = []
-        var offset = 0
-        for line in lines {
-            lineOffsets.append(offset)
-            offset += line.count + 1 // +1 for newline
-        }
+        // トークンがある場合のみ色付け
+        if !tokens.isEmpty {
+            // 各行の開始オフセットを事前計算
+            let lines = textView.string.split(separator: "\n", omittingEmptySubsequences: false)
+            var lineOffsets: [Int] = []
+            var offset = 0
+            for line in lines {
+                lineOffsets.append(offset)
+                offset += line.count + 1 // +1 for newline
+            }
 
-        // トークンごとに色を適用
-        for token in tokens {
-            let lineIndex = Int(token.line) - 1 // 1-based → 0-based
-            guard lineIndex >= 0, lineIndex < lineOffsets.count else { continue }
+            // トークンごとに色を適用
+            for token in tokens {
+                let lineIndex = Int(token.line) - 1 // 1-based → 0-based
+                guard lineIndex >= 0, lineIndex < lineOffsets.count else { continue }
 
-            let lineStart = lineOffsets[lineIndex]
-            let start = lineStart + Int(token.startCol)
-            let length = Int(token.endCol) - Int(token.startCol)
+                let lineStart = lineOffsets[lineIndex]
+                let start = lineStart + Int(token.startCol)
+                let length = Int(token.endCol) - Int(token.startCol)
 
-            guard start >= 0, length > 0, start + length <= fullText.length else { continue }
+                guard start >= 0, length > 0, start + length <= fullText.length else { continue }
 
-            let range = NSRange(location: start, length: length)
-            let color = SyntaxTheme.color(for: token.tokenType)
-            textStorage.addAttribute(.foregroundColor, value: color, range: range)
+                let range = NSRange(location: start, length: length)
+                let color = SyntaxTheme.color(for: token.tokenType)
+                textStorage.addAttribute(.foregroundColor, value: color, range: range)
+            }
         }
 
         textStorage.endEditing()
