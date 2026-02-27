@@ -2,242 +2,89 @@ import Foundation
 
 @MainActor
 final class ProjectViewModel: ObservableObject {
-    @Published var rootNodes: [FileNode] = []
-    @Published var selectedFile: FileNode?
+    @Published var rootNodes: [TreeNode] = []
+    @Published var selectedFile: TreeNode?
     @Published var fileContent: String?
     @Published var isBlameVisible: Bool = false
-    @Published var blameLines: [BlameLineInfo] = []
+    @Published var blameLines: [BlameLine] = []
     @Published var highlightTokens: [TokenSpan] = []
+
+    private var rootPath: String = ""
 
     /// プロジェクトを開く
     func openProject(path: String) async {
-        // TODO: Replace with UniFFI call — open_project(root_path:) + list_dir(handle:, dir_path:)
-        rootNodes = Self.mockRootNodes(rootPath: path)
+        rootPath = path
+        do {
+            _ = try openProject(rootPath: path)
+            let fileNodes = try listDir(rootPath: path, dirPath: path)
+            rootNodes = fileNodes.map { TreeNode(node: $0) }
+        } catch {
+            print("Failed to open project: \(error)")
+            rootNodes = []
+        }
     }
 
     /// ファイルを選択して内容を読み込む
-    func selectFile(node: FileNode) async {
+    func selectFile(node: TreeNode) async {
         guard node.kind == .file else { return }
         selectedFile = node
 
-        // TODO: Replace with UniFFI call — read_file(path:)
-        fileContent = Self.mockFileContent(for: node.path)
+        do {
+            let content = try readFile(path: node.path)
+            fileContent = content
 
-        // TODO: Replace with UniFFI call — highlight_range(path:, start_line:, end_line:)
-        highlightTokens = Self.mockHighlightTokens(for: node.path, content: fileContent)
+            let lineCount = UInt32(content.components(separatedBy: "\n").count)
 
-        // TODO: Replace with UniFFI call — blame_range(path:, start_line:, end_line:)
-        blameLines = Self.mockBlameLines(for: node.path)
+            // ハイライト取得（失敗しても空配列）
+            highlightTokens = (try? highlightRange(
+                path: node.path,
+                startLine: 1,
+                endLine: lineCount
+            )) ?? []
+
+            // Blame取得（非Gitリポジトリでは空配列）
+            blameLines = (try? blameRange(
+                path: node.path,
+                startLine: 1,
+                endLine: lineCount
+            )) ?? []
+        } catch {
+            print("Failed to read file: \(error)")
+            fileContent = nil
+            highlightTokens = []
+            blameLines = []
+        }
     }
 
     /// ディレクトリの展開/折りたたみ
-    func toggleDir(node: FileNode) async {
+    func toggleDir(node: TreeNode) async {
         guard node.kind == .dir else { return }
-
-        // ツリー内のノードを再帰的に探して更新
-        rootNodes = Self.toggleNodeInTree(nodes: rootNodes, targetId: node.id)
+        rootNodes = toggleNodeInTree(nodes: rootNodes, targetId: node.id)
     }
 
     // MARK: - Tree Update
 
-    private static func toggleNodeInTree(nodes: [FileNode], targetId: String) -> [FileNode] {
-        nodes.map { node in
-            if node.id == targetId {
-                var updated = node
+    private func toggleNodeInTree(nodes: [TreeNode], targetId: String) -> [TreeNode] {
+        nodes.map { treeNode in
+            if treeNode.id == targetId {
+                var updated = treeNode
                 updated.isExpanded.toggle()
                 if updated.isExpanded, updated.children == nil {
-                    // TODO: Replace with UniFFI call — list_dir(handle:, dir_path:)
-                    updated.children = mockChildren(for: node.path)
+                    do {
+                        let fileNodes = try listDir(rootPath: rootPath, dirPath: treeNode.path)
+                        updated.children = fileNodes.map { TreeNode(node: $0) }
+                    } catch {
+                        print("Failed to list dir: \(error)")
+                        updated.children = []
+                    }
                 }
                 return updated
-            } else if node.kind == .dir, let children = node.children {
-                var updated = node
+            } else if treeNode.kind == .dir, let children = treeNode.children {
+                var updated = treeNode
                 updated.children = toggleNodeInTree(nodes: children, targetId: targetId)
                 return updated
             }
-            return node
-        }
-    }
-
-    // MARK: - Mock Data
-
-    static func mockRootNodes(rootPath: String) -> [FileNode] {
-        [
-            FileNode(
-                id: "1",
-                path: "\(rootPath)/src",
-                name: "src",
-                kind: .dir,
-                children: nil
-            ),
-            FileNode(
-                id: "2",
-                path: "\(rootPath)/Cargo.toml",
-                name: "Cargo.toml",
-                kind: .file,
-                children: nil
-            ),
-            FileNode(
-                id: "3",
-                path: "\(rootPath)/README.md",
-                name: "README.md",
-                kind: .file,
-                children: nil
-            ),
-            FileNode(
-                id: "4",
-                path: "\(rootPath)/.gitignore",
-                name: ".gitignore",
-                kind: .file,
-                children: nil
-            )
-        ]
-    }
-
-    static func mockChildren(for dirPath: String) -> [FileNode] {
-        [
-            FileNode(
-                id: "\(dirPath)/main.rs",
-                path: "\(dirPath)/main.rs",
-                name: "main.rs",
-                kind: .file,
-                children: nil
-            ),
-            FileNode(
-                id: "\(dirPath)/lib.rs",
-                path: "\(dirPath)/lib.rs",
-                name: "lib.rs",
-                kind: .file,
-                children: nil
-            ),
-            FileNode(
-                id: "\(dirPath)/utils",
-                path: "\(dirPath)/utils",
-                name: "utils",
-                kind: .dir,
-                children: nil
-            )
-        ]
-    }
-
-    static func mockBlameLines(for _: String) -> [BlameLineInfo] {
-        var lines: [BlameLineInfo] = []
-        lines.reserveCapacity(10)
-        for line in 1 ... 10 {
-            let isFirstHalf = line <= 5
-            let info = BlameLineInfo(
-                line: UInt32(line),
-                author: isFirstHalf ? "Alice" : "Bob",
-                authorTime: isFirstHalf ? 1_700_000_000 : 1_700_100_000,
-                summary: isFirstHalf ? "initial commit" : "fix: update logic",
-                commit: isFirstHalf ? "abcdef1" : "1234567"
-            )
-            lines.append(info)
-        }
-        return lines
-    }
-
-    static func mockHighlightTokens(for path: String, content: String?) -> [TokenSpan] {
-        guard let content, !content.isEmpty else { return [] }
-        let ext = (path as NSString).pathExtension.lowercased()
-
-        guard ["js", "jsx", "ts", "tsx"].contains(ext) else { return [] }
-
-        var tokens: [TokenSpan] = []
-        let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
-
-        let keywords = ["const", "let", "var", "function", "return", "if", "else", "for",
-                        "while", "import", "export", "from", "class", "interface", "type"]
-
-        for (lineIndex, line) in lines.enumerated() {
-            let lineNum = UInt32(lineIndex + 1)
-            let lineStr = String(line)
-
-            for keyword in keywords {
-                var searchStart = lineStr.startIndex
-                while let range = lineStr.range(of: keyword, range: searchStart ..< lineStr.endIndex) {
-                    let col = UInt32(lineStr.distance(from: lineStr.startIndex, to: range.lowerBound))
-                    tokens.append(TokenSpan(
-                        line: lineNum,
-                        startCol: col,
-                        endCol: col + UInt32(keyword.count),
-                        tokenType: .keyword
-                    ))
-                    searchStart = range.upperBound
-                }
-            }
-        }
-
-        return tokens
-    }
-
-    static func mockFileContent(for path: String) -> String {
-        let name = (path as NSString).lastPathComponent
-        switch name {
-        case "main.rs":
-            return """
-            use std::env;
-
-            fn main() {
-                let args: Vec<String> = env::args().collect();
-                println!("Hello, Blink!");
-
-                if args.len() > 1 {
-                    println!("Opening: {}", args[1]);
-                }
-            }
-            """
-        case "lib.rs":
-            return """
-            pub mod utils;
-
-            /// Core library for Blink
-            pub fn version() -> &'static str {
-                env!("CARGO_PKG_VERSION")
-            }
-
-            #[cfg(test)]
-            mod tests {
-                use super::*;
-
-                #[test]
-                fn test_version() {
-                    assert!(!version().is_empty());
-                }
-            }
-            """
-        case "Cargo.toml":
-            return """
-            [package]
-            name = "blink"
-            version = "0.1.0"
-            edition = "2021"
-
-            [dependencies]
-            ignore = "0.4"
-            notify = "6.1"
-            tree-sitter = "0.22"
-            """
-        case "README.md":
-            return """
-            # Blink
-
-            Mac用超軽量コードビューア
-
-            ## Features
-            - プロジェクトツリー表示（.gitignore対応）
-            - シンタックスハイライト（tree-sitter）
-            - Git Blame表示
-            """
-        case ".gitignore":
-            return """
-            /target
-            *.o
-            *.d
-            .DS_Store
-            """
-        default:
-            return "// \(name)\n"
+            return treeNode
         }
     }
 }

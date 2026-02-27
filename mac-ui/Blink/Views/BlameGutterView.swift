@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Blame 情報を行ごとに表示するガタービュー
 struct BlameGutterView: View {
-    let blameLines: [BlameLineInfo]
+    let blameLines: [BlameLine]
     let lineHeight: CGFloat = 18
 
     var body: some View {
@@ -65,14 +65,4 @@ struct BlameGutterView: View {
         if minutes > 0 { return "\(minutes)m ago" }
         return "now"
     }
-}
-
-/// Blame行情報（Swift側モデル）
-struct BlameLineInfo: Identifiable {
-    let id = UUID()
-    let line: UInt32
-    let author: String
-    let authorTime: Int64
-    let summary: String
-    let commit: String
 }
