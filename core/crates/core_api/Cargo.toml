@@ -3,11 +3,16 @@ name = "core_api"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+name = "core_api"
+
 [dependencies]
 core_types = { path = "../core_types" }
 core_fs = { path = "../core_fs" }
 core_git = { path = "../core_git" }
 core_highlight = { path = "../core_highlight" }
+uniffi = "0.28"
 
 [dev-dependencies]
 tempfile = "3"
