@@ -2,3 +2,6 @@
 name = "core_types"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+uniffi = "0.28"

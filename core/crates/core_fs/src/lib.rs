@@ -69,7 +69,6 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
             path: path_str,
             name,
             kind,
-            children: None,
         });
     }
 
