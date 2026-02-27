@@ -15,7 +15,7 @@ final class ProjectViewModel: ObservableObject {
     func openProject(path: String) async {
         rootPath = path
         do {
-            _ = try openProject(rootPath: path)
+            _ = try Blink.openProject(rootPath: path)
             let fileNodes = try listDir(rootPath: path, dirPath: path)
             rootNodes = fileNodes.map { TreeNode(node: $0) }
         } catch {
