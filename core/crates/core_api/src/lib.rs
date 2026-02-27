@@ -25,7 +25,9 @@ pub fn open_project(root_path: String) -> Result<String, CoreError> {
         return Err(core_error(format!("パスが存在しません: {root_path}")));
     }
     if !path.is_dir() {
-        return Err(core_error(format!("パスがディレクトリではありません: {root_path}")));
+        return Err(core_error(format!(
+            "パスがディレクトリではありません: {root_path}"
+        )));
     }
     Ok(root_path)
 }
@@ -73,7 +75,11 @@ pub fn highlight_range(
 /// Git Blame: 指定範囲の行に対する blame 情報を返す
 /// 非Gitリポジトリの場合は空Vecを返す（エラーにしない）
 #[uniffi::export]
-pub fn blame_range(path: String, start_line: u32, end_line: u32) -> Result<Vec<BlameLine>, CoreError> {
+pub fn blame_range(
+    path: String,
+    start_line: u32,
+    end_line: u32,
+) -> Result<Vec<BlameLine>, CoreError> {
     match core_git::blame_file(&path) {
         Ok(lines) => Ok(lines
             .into_iter()
@@ -102,7 +108,10 @@ mod tests {
     fn open_project_nonexistent() {
         let result = open_project("/nonexistent/path".to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("パスが存在しません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("パスが存在しません"));
     }
 
     #[test]
@@ -113,7 +122,10 @@ mod tests {
 
         let result = open_project(file_path.to_str().unwrap().to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("ディレクトリではありません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ディレクトリではありません"));
     }
 
     #[test]
@@ -149,7 +161,10 @@ mod tests {
     fn read_file_nonexistent() {
         let result = read_file("/nonexistent/file.txt".to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("ファイルが存在しません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイルが存在しません"));
     }
 
     #[test]
@@ -157,7 +172,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let result = read_file(tmp.path().to_str().unwrap().to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("ファイルではありません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイルではありません"));
     }
 
     #[test]

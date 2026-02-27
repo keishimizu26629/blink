@@ -90,7 +90,7 @@ final class ProjectViewModel: ObservableObject {
                 name: ".gitignore",
                 kind: .file,
                 children: nil
-            ),
+            )
         ]
     }
 
@@ -116,7 +116,7 @@ final class ProjectViewModel: ObservableObject {
                 name: "utils",
                 kind: .dir,
                 children: nil
-            ),
+            )
         ]
     }
 

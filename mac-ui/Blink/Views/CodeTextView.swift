@@ -111,7 +111,7 @@ struct CodeTextView: NSViewRepresentable {
         textStorage.addAttributes(
             [
                 .foregroundColor: SyntaxTheme.defaultTextColor,
-                .font: font,
+                .font: font
             ],
             range: fullRange
         )
@@ -209,7 +209,7 @@ final class LineNumberRulerView: NSRulerView {
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: lineNumberFont,
-            .foregroundColor: lineNumberColor,
+            .foregroundColor: lineNumberColor
         ]
 
         var lineNumber = 1
