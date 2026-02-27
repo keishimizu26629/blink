@@ -1,7 +1,9 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var viewModel: ProjectViewModel
+    @State private var isFolderImporterPresented = false
 
     var body: some View {
         NavigationSplitView {
@@ -32,8 +34,17 @@ struct ContentView: View {
                         Divider()
                     }
 
-                    CodeTextView(text: content, tokens: viewModel.highlightTokens)
+                    CodeTextView(
+                        text: Binding(
+                            get: { viewModel.fileContent ?? content },
+                            set: { viewModel.fileContent = $0 }
+                        ),
+                        tokens: viewModel.highlightTokens
+                    )
+                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+                    .layoutPriority(1)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Text("ファイルを選択してください")
                     .font(.title3)
@@ -60,19 +71,40 @@ struct ContentView: View {
                 .disabled(viewModel.fileContent == nil)
             }
         }
+        .fileImporter(
+            isPresented: $isFolderImporterPresented,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case let .success(urls):
+                guard let url = urls.first else { return }
+                Task {
+                    await viewModel.openProject(url: url)
+                }
+            case let .failure(error):
+                viewModel.errorMessage = "フォルダ選択に失敗しました: \(error.localizedDescription)"
+            }
+        }
+        .alert("エラー", isPresented: errorPresentedBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
     }
 
     private func openFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.message = "プロジェクトフォルダを選択してください"
+        isFolderImporterPresented = true
+    }
 
-        if panel.runModal() == .OK, let url = panel.url {
-            Task {
-                await viewModel.openProject(path: url.path)
+    private var errorPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.errorMessage = nil
+                }
             }
-        }
+        )
     }
 }
