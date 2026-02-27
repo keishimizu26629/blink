@@ -59,28 +59,28 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(rootPath)/src",
                 name: "src",
                 kind: .dir,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "2",
                 path: "\(rootPath)/Cargo.toml",
                 name: "Cargo.toml",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "3",
                 path: "\(rootPath)/README.md",
                 name: "README.md",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "4",
                 path: "\(rootPath)/.gitignore",
                 name: ".gitignore",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
         ]
     }
@@ -92,21 +92,21 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(dirPath)/main.rs",
                 name: "main.rs",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "\(dirPath)/lib.rs",
                 path: "\(dirPath)/lib.rs",
                 name: "lib.rs",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "\(dirPath)/utils",
                 path: "\(dirPath)/utils",
                 name: "utils",
                 kind: .dir,
-                children: nil
+                children: nil,
             ),
         ]
     }
