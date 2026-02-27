@@ -28,7 +28,7 @@ struct BlinkApp: App {
 
         if panel.runModal() == .OK, let url = panel.url {
             Task {
-                await viewModel.openProject(path: url.path)
+                await viewModel.openProject(url: url)
             }
         }
     }
