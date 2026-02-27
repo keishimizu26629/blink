@@ -5,7 +5,7 @@ import SwiftUI
 struct CodeTextView: NSViewRepresentable {
     let text: String
 
-    func makeNSView(context: Context) -> NSScrollView {
+    func makeNSView(context _: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
 
         guard let textView = scrollView.documentView as? NSTextView else {
@@ -49,7 +49,7 @@ struct CodeTextView: NSViewRepresentable {
         return scrollView
     }
 
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    func updateNSView(_ scrollView: NSScrollView, context _: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         textView.string = text
 
@@ -71,8 +71,8 @@ final class LineNumberRulerView: NSRulerView {
     init(textView: NSTextView) {
         self.textView = textView
         super.init(scrollView: textView.enclosingScrollView!, orientation: .verticalRuler)
-        self.clientView = textView
-        self.ruleThickness = 40
+        clientView = textView
+        ruleThickness = 40
 
         // テキスト変更時に再描画
         NotificationCenter.default.addObserver(
@@ -84,11 +84,11 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     @available(*, unavailable)
-    required init(coder: NSCoder) {
+    required init(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    @objc private func textDidChange(_ notification: Notification) {
+    @objc private func textDidChange(_: Notification) {
         needsDisplay = true
     }
 

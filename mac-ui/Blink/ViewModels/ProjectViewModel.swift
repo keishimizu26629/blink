@@ -36,7 +36,7 @@ final class ProjectViewModel: ObservableObject {
             if node.id == targetId {
                 var updated = node
                 updated.isExpanded.toggle()
-                if updated.isExpanded && updated.children == nil {
+                if updated.isExpanded, updated.children == nil {
                     // TODO: Replace with UniFFI call — list_dir(handle:, dir_path:)
                     updated.children = mockChildren(for: node.path)
                 }

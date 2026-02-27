@@ -96,13 +96,4 @@ struct FileNode: Identifiable, Equatable {
     let kind: NodeKind
     var children: [FileNode]?
     var isExpanded: Bool = false
-
-    static func == (lhs: FileNode, rhs: FileNode) -> Bool {
-        lhs.id == rhs.id
-            && lhs.path == rhs.path
-            && lhs.name == rhs.name
-            && lhs.kind == rhs.kind
-            && lhs.children == rhs.children
-            && lhs.isExpanded == rhs.isExpanded
-    }
 }
