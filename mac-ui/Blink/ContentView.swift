@@ -17,12 +17,12 @@ struct ContentView: View {
                     Task {
                         await viewModel.toggleDir(node: node)
                     }
-                }
+                },
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
         } detail: {
             if let content = viewModel.fileContent {
-                CodeTextView(text: content)
+                CodeTextView(text: content, tokens: viewModel.highlightTokens)
             } else {
                 Text("ファイルを選択してください")
                     .font(.title3)

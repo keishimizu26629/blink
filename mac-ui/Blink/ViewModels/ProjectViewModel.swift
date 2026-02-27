@@ -5,6 +5,7 @@ final class ProjectViewModel: ObservableObject {
     @Published var rootNodes: [FileNode] = []
     @Published var selectedFile: FileNode?
     @Published var fileContent: String?
+    @Published var highlightTokens: [TokenSpan] = []
 
     /// プロジェクトを開く
     func openProject(path: String) async {
@@ -19,6 +20,9 @@ final class ProjectViewModel: ObservableObject {
 
         // TODO: Replace with UniFFI call — read_file(path:)
         fileContent = Self.mockFileContent(for: node.path)
+
+        // TODO: Replace with UniFFI call — highlight_range(path:, start_line:, end_line:)
+        highlightTokens = Self.mockHighlightTokens(for: node.path, content: fileContent)
     }
 
     /// ディレクトリの展開/折りたたみ
@@ -59,28 +63,28 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(rootPath)/src",
                 name: "src",
                 kind: .dir,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "2",
                 path: "\(rootPath)/Cargo.toml",
                 name: "Cargo.toml",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "3",
                 path: "\(rootPath)/README.md",
                 name: "README.md",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "4",
                 path: "\(rootPath)/.gitignore",
                 name: ".gitignore",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
         ]
     }
@@ -92,23 +96,61 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(dirPath)/main.rs",
                 name: "main.rs",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "\(dirPath)/lib.rs",
                 path: "\(dirPath)/lib.rs",
                 name: "lib.rs",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "\(dirPath)/utils",
                 path: "\(dirPath)/utils",
                 name: "utils",
                 kind: .dir,
-                children: nil
+                children: nil,
             ),
         ]
+    }
+
+    /// モック: ファイル拡張子に応じた簡易ハイライトトークンを生成
+    /// TODO: UniFFI 接続後は highlight_range() の結果をそのまま使用
+    static func mockHighlightTokens(for path: String, content: String?) -> [TokenSpan] {
+        guard let content, !content.isEmpty else { return [] }
+        let ext = (path as NSString).pathExtension.lowercased()
+
+        // JS/TS 系のみモックトークンを返す（Rust 側が JS/TS 対応のため）
+        guard ["js", "jsx", "ts", "tsx"].contains(ext) else { return [] }
+
+        var tokens: [TokenSpan] = []
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
+
+        // 簡易キーワードマッチング（モック用）
+        let keywords = ["const", "let", "var", "function", "return", "if", "else", "for",
+                        "while", "import", "export", "from", "class", "interface", "type"]
+
+        for (lineIndex, line) in lines.enumerated() {
+            let lineNum = UInt32(lineIndex + 1)
+            let lineStr = String(line)
+
+            for keyword in keywords {
+                var searchStart = lineStr.startIndex
+                while let range = lineStr.range(of: keyword, range: searchStart ..< lineStr.endIndex) {
+                    let col = UInt32(lineStr.distance(from: lineStr.startIndex, to: range.lowerBound))
+                    tokens.append(TokenSpan(
+                        line: lineNum,
+                        startCol: col,
+                        endCol: col + UInt32(keyword.count),
+                        tokenType: .keyword,
+                    ))
+                    searchStart = range.upperBound
+                }
+            }
+        }
+
+        return tokens
     }
 
     static func mockFileContent(for path: String) -> String {
