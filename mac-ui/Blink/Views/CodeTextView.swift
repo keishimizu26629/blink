@@ -1,9 +1,38 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Token Models (UniFFI 接続前の Swift 側定義)
+
+/// Rust 側 TokenType に対応する列挙型
+/// TODO: UniFFI bindings 生成後、生成された型に置き換え
+enum TokenType: String {
+    case keyword = "Keyword"
+    case string = "String"
+    case comment = "Comment"
+    case type_ = "Type"
+    case function = "Function"
+    case number = "Number"
+    case operator_ = "Operator"
+    case punctuation = "Punctuation"
+    case variable = "Variable"
+    case plain = "Plain"
+}
+
+/// Rust 側 TokenSpan に対応する構造体
+/// TODO: UniFFI bindings 生成後、生成された型に置き換え
+struct TokenSpan {
+    let line: UInt32
+    let startCol: UInt32
+    let endCol: UInt32
+    let tokenType: TokenType
+}
+
+// MARK: - CodeTextView
+
 /// NSTextView を SwiftUI にブリッジする読み取り専用コードビューア
 struct CodeTextView: NSViewRepresentable {
     let text: String
+    let tokens: [TokenSpan]
 
     func makeNSView(context _: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -19,9 +48,10 @@ struct CodeTextView: NSViewRepresentable {
         // 等幅フォント（SF Mono, 13pt）
         textView.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
-        // テキストカラー
-        textView.textColor = NSColor.textColor
-        textView.backgroundColor = NSColor.textBackgroundColor
+        // ダークテーマ背景 & デフォルトテキスト色
+        textView.backgroundColor = SyntaxTheme.backgroundColor
+        textView.textColor = SyntaxTheme.defaultTextColor
+        textView.insertionPointColor = SyntaxTheme.defaultTextColor
 
         // 行番号（ruler）
         scrollView.hasVerticalRuler = false
@@ -51,12 +81,66 @@ struct CodeTextView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context _: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
+
+        // テキストをセット
         textView.string = text
+
+        // シンタックスハイライトを適用
+        applySyntaxHighlight(to: textView)
 
         // ruler を更新
         if let rulerView = scrollView.verticalRulerView as? LineNumberRulerView {
             rulerView.needsDisplay = true
         }
+    }
+
+    // MARK: - Syntax Highlight
+
+    /// TokenSpan 配列を NSTextStorage の属性に変換して適用する
+    private func applySyntaxHighlight(to textView: NSTextView) {
+        guard !tokens.isEmpty else { return }
+        guard let textStorage = textView.textStorage else { return }
+
+        let fullText = textView.string as NSString
+        let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+
+        // まずデフォルト属性をリセット
+        let fullRange = NSRange(location: 0, length: fullText.length)
+        textStorage.beginEditing()
+        textStorage.addAttributes(
+            [
+                .foregroundColor: SyntaxTheme.defaultTextColor,
+                .font: font,
+            ],
+            range: fullRange,
+        )
+
+        // 各行の開始オフセットを事前計算
+        let lines = textView.string.split(separator: "\n", omittingEmptySubsequences: false)
+        var lineOffsets: [Int] = []
+        var offset = 0
+        for line in lines {
+            lineOffsets.append(offset)
+            offset += line.count + 1 // +1 for newline
+        }
+
+        // トークンごとに色を適用
+        for token in tokens {
+            let lineIndex = Int(token.line) - 1 // 1-based → 0-based
+            guard lineIndex >= 0, lineIndex < lineOffsets.count else { continue }
+
+            let lineStart = lineOffsets[lineIndex]
+            let start = lineStart + Int(token.startCol)
+            let length = Int(token.endCol) - Int(token.startCol)
+
+            guard start >= 0, length > 0, start + length <= fullText.length else { continue }
+
+            let range = NSRange(location: start, length: length)
+            let color = SyntaxTheme.color(for: token.tokenType.rawValue)
+            textStorage.addAttribute(.foregroundColor, value: color, range: range)
+        }
+
+        textStorage.endEditing()
     }
 }
 
@@ -98,9 +182,8 @@ final class LineNumberRulerView: NSRulerView {
               let textContainer = textView.textContainer
         else { return }
 
-        // 背景描画
-        let bgColor = NSColor.controlBackgroundColor
-        bgColor.setFill()
+        // 背景描画（テーマに合わせる）
+        SyntaxTheme.backgroundColor.setFill()
         rect.fill()
 
         // セパレータ線
