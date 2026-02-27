@@ -5,6 +5,8 @@ final class ProjectViewModel: ObservableObject {
     @Published var rootNodes: [FileNode] = []
     @Published var selectedFile: FileNode?
     @Published var fileContent: String?
+    @Published var isBlameVisible: Bool = false
+    @Published var blameLines: [BlameLineInfo] = []
 
     /// プロジェクトを開く
     func openProject(path: String) async {
@@ -19,6 +21,9 @@ final class ProjectViewModel: ObservableObject {
 
         // TODO: Replace with UniFFI call — read_file(path:)
         fileContent = Self.mockFileContent(for: node.path)
+
+        // TODO: Replace with UniFFI call — blame_range(path:, start_line:, end_line:)
+        blameLines = Self.mockBlameLines(for: node.path)
     }
 
     /// ディレクトリの展開/折りたたみ
@@ -59,28 +64,28 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(rootPath)/src",
                 name: "src",
                 kind: .dir,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "2",
                 path: "\(rootPath)/Cargo.toml",
                 name: "Cargo.toml",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "3",
                 path: "\(rootPath)/README.md",
                 name: "README.md",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "4",
                 path: "\(rootPath)/.gitignore",
                 name: ".gitignore",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
         ]
     }
@@ -92,23 +97,36 @@ final class ProjectViewModel: ObservableObject {
                 path: "\(dirPath)/main.rs",
                 name: "main.rs",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "\(dirPath)/lib.rs",
                 path: "\(dirPath)/lib.rs",
                 name: "lib.rs",
                 kind: .file,
-                children: nil
+                children: nil,
             ),
             FileNode(
                 id: "\(dirPath)/utils",
                 path: "\(dirPath)/utils",
                 name: "utils",
                 kind: .dir,
-                children: nil
+                children: nil,
             ),
         ]
+    }
+
+    static func mockBlameLines(for _: String) -> [BlameLineInfo] {
+        // モックデータ: 実際にはUniFFI経由でblame_range()を呼ぶ
+        (1 ... 10).map { line in
+            BlameLineInfo(
+                line: UInt32(line),
+                author: line <= 5 ? "Alice" : "Bob",
+                authorTime: line <= 5 ? 1_700_000_000 : 1_700_100_000,
+                summary: line <= 5 ? "initial commit" : "fix: update logic",
+                commit: line <= 5 ? "abcdef1" : "1234567",
+            )
+        }
     }
 
     static func mockFileContent(for path: String) -> String {

@@ -31,22 +31,36 @@ pub fn read_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("ファイル読み取りエラー: {e}"))
 }
 
-/// シンタックスハイライト（スタブ: Phase 2 で実装）
+/// シンタックスハイライト: ファイルを読み込み、指定範囲のトークンを返す
 pub fn highlight_range(
-    _path: String,
-    _start_line: u32,
-    _end_line: u32,
+    path: String,
+    start_line: u32,
+    end_line: u32,
 ) -> Result<Vec<TokenSpan>, String> {
-    Ok(vec![])
+    let language = match core_highlight::detect_language(&path) {
+        Some(lang) => lang,
+        None => return Ok(vec![]),
+    };
+
+    let content = read_file(path)?;
+    let tokens = core_highlight::tokenize(&content, language)?;
+
+    Ok(tokens
+        .into_iter()
+        .filter(|t| t.line >= start_line && t.line <= end_line)
+        .collect())
 }
 
-/// Git Blame（スタブ: Phase 3 で実装）
-pub fn blame_range(
-    _path: String,
-    _start_line: u32,
-    _end_line: u32,
-) -> Result<Vec<BlameLine>, String> {
-    Ok(vec![])
+/// Git Blame: 指定範囲の行に対する blame 情報を返す
+/// 非Gitリポジトリの場合は空Vecを返す（エラーにしない）
+pub fn blame_range(path: String, start_line: u32, end_line: u32) -> Result<Vec<BlameLine>, String> {
+    match core_git::blame_file(&path) {
+        Ok(lines) => Ok(lines
+            .into_iter()
+            .filter(|bl| bl.line >= start_line && bl.line <= end_line)
+            .collect()),
+        Err(_) => Ok(vec![]),
+    }
 }
 
 #[cfg(test)]
@@ -127,15 +141,44 @@ mod tests {
     }
 
     #[test]
-    fn highlight_range_returns_empty() {
+    fn highlight_range_unsupported_lang_returns_empty() {
         let result = highlight_range("test.rs".to_string(), 1, 10);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
 
     #[test]
-    fn blame_range_returns_empty() {
-        let result = blame_range("test.rs".to_string(), 1, 10);
+    fn highlight_range_javascript_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.js");
+        fs::write(&file_path, "const x = 42;\nlet y = 10;").unwrap();
+
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 1, 2);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        assert!(!tokens.is_empty());
+        // 全トークンが指定範囲内であることを確認
+        assert!(tokens.iter().all(|t| t.line >= 1 && t.line <= 2));
+    }
+
+    #[test]
+    fn highlight_range_filters_by_line() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.ts");
+        fs::write(&file_path, "const a = 1;\nconst b = 2;\nconst c = 3;").unwrap();
+
+        // 2行目のみ取得
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 2, 2);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        assert!(!tokens.is_empty());
+        assert!(tokens.iter().all(|t| t.line == 2));
+    }
+
+    #[test]
+    fn blame_range_non_git_returns_empty() {
+        // 非Gitリポジトリのファイルに対しては空Vecを返す
+        let result = blame_range("/tmp/nonexistent_file.rs".to_string(), 1, 10);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }

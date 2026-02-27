@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 /// NSTextView を SwiftUI にブリッジする読み取り専用コードビューア
+/// TODO: BlameGutterView とのスクロール同期（Phase 3+）
 struct CodeTextView: NSViewRepresentable {
     let text: String
 
@@ -40,7 +41,7 @@ struct CodeTextView: NSViewRepresentable {
         textView.textContainer?.widthTracksTextView = false
         textView.textContainer?.containerSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
+            height: CGFloat.greatestFiniteMagnitude,
         )
 
         scrollView.hasHorizontalScroller = true
@@ -79,7 +80,7 @@ final class LineNumberRulerView: NSRulerView {
             self,
             selector: #selector(textDidChange),
             name: NSText.didChangeNotification,
-            object: textView
+            object: textView,
         )
     }
 
@@ -93,7 +94,7 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView = textView,
+        guard let textView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer
         else { return }
@@ -116,11 +117,11 @@ final class LineNumberRulerView: NSRulerView {
         let visibleRect = textView.visibleRect
         let visibleGlyphRange = layoutManager.glyphRange(
             forBoundingRect: visibleRect,
-            in: textContainer
+            in: textContainer,
         )
         let visibleCharRange = layoutManager.characterRange(
             forGlyphRange: visibleGlyphRange,
-            actualGlyphRange: nil
+            actualGlyphRange: nil,
         )
 
         let attributes: [NSAttributedString.Key: Any] = [
@@ -134,7 +135,7 @@ final class LineNumberRulerView: NSRulerView {
         // 可視範囲前の行数をカウント
         text.enumerateSubstrings(
             in: NSRange(location: 0, length: visibleCharRange.location),
-            options: [.byLines, .substringNotRequired]
+            options: [.byLines, .substringNotRequired],
         ) { _, _, _, _ in
             lineNumber += 1
         }
@@ -142,15 +143,15 @@ final class LineNumberRulerView: NSRulerView {
         // 可視範囲内の行番号を描画
         text.enumerateSubstrings(
             in: visibleCharRange,
-            options: [.byLines, .substringNotRequired]
+            options: [.byLines, .substringNotRequired],
         ) { _, substringRange, _, _ in
             let glyphRange = layoutManager.glyphRange(
                 forCharacterRange: substringRange,
-                actualCharacterRange: nil
+                actualCharacterRange: nil,
             )
             let lineRect = layoutManager.lineFragmentRect(
                 forGlyphAt: glyphRange.location,
-                effectiveRange: nil
+                effectiveRange: nil,
             )
 
             let relativeY = lineRect.minY - visibleRect.minY + self.convert(NSPoint.zero, from: self.clientView).y
@@ -160,9 +161,9 @@ final class LineNumberRulerView: NSRulerView {
             lineStr.draw(
                 at: NSPoint(
                     x: self.ruleThickness - strSize.width - 6,
-                    y: relativeY + (lineRect.height - strSize.height) / 2
+                    y: relativeY + (lineRect.height - strSize.height) / 2,
                 ),
-                withAttributes: attributes
+                withAttributes: attributes,
             )
 
             lineNumber += 1

@@ -17,12 +17,23 @@ struct ContentView: View {
                     Task {
                         await viewModel.toggleDir(node: node)
                     }
-                }
+                },
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
         } detail: {
             if let content = viewModel.fileContent {
-                CodeTextView(text: content)
+                HStack(spacing: 0) {
+                    if viewModel.isBlameVisible {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            BlameGutterView(blameLines: viewModel.blameLines)
+                        }
+                        .frame(width: 130)
+
+                        Divider()
+                    }
+
+                    CodeTextView(text: content)
+                }
             } else {
                 Text("ファイルを選択してください")
                     .font(.title3)
@@ -35,6 +46,18 @@ struct ContentView: View {
                 Button(action: openFolder) {
                     Label("Open Folder", systemImage: "folder.badge.plus")
                 }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    viewModel.isBlameVisible.toggle()
+                } label: {
+                    Label(
+                        "Blame",
+                        systemImage: viewModel.isBlameVisible ? "person.fill" : "person",
+                    )
+                }
+                .help("Git Blame の表示切替")
+                .disabled(viewModel.fileContent == nil)
             }
         }
     }
