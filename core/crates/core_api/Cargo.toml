@@ -12,6 +12,7 @@ core_types = { path = "../core_types" }
 core_fs = { path = "../core_fs" }
 core_git = { path = "../core_git" }
 core_highlight = { path = "../core_highlight" }
+thiserror = "1"
 uniffi = "0.28"
 
 [dev-dependencies]

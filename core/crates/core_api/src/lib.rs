@@ -4,36 +4,51 @@ use core_types::{BlameLine, FileNode, TokenSpan};
 
 uniffi::setup_scaffolding!();
 
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+#[uniffi(flat_error)]
+pub enum CoreError {
+    #[error("{reason}")]
+    Message { reason: String },
+}
+
+fn core_error(reason: impl Into<String>) -> CoreError {
+    CoreError::Message {
+        reason: reason.into(),
+    }
+}
+
 /// プロジェクトを開く（MVPではルートパスをそのまま返す）
 #[uniffi::export]
-pub fn open_project(root_path: String) -> Result<String, String> {
+pub fn open_project(root_path: String) -> Result<String, CoreError> {
     let path = Path::new(&root_path);
     if !path.exists() {
-        return Err(format!("パスが存在しません: {root_path}"));
+        return Err(core_error(format!("パスが存在しません: {root_path}")));
     }
     if !path.is_dir() {
-        return Err(format!("パスがディレクトリではありません: {root_path}"));
+        return Err(core_error(format!(
+            "パスがディレクトリではありません: {root_path}"
+        )));
     }
     Ok(root_path)
 }
 
 /// ディレクトリ内のファイル一覧を返す
 #[uniffi::export]
-pub fn list_dir(root_path: String, dir_path: String) -> Result<Vec<FileNode>, String> {
-    core_fs::list_dir(&root_path, &dir_path)
+pub fn list_dir(root_path: String, dir_path: String) -> Result<Vec<FileNode>, CoreError> {
+    core_fs::list_dir(&root_path, &dir_path).map_err(core_error)
 }
 
 /// ファイルの内容を文字列として読み込む
 #[uniffi::export]
-pub fn read_file(path: String) -> Result<String, String> {
+pub fn read_file(path: String) -> Result<String, CoreError> {
     let p = Path::new(&path);
     if !p.exists() {
-        return Err(format!("ファイルが存在しません: {path}"));
+        return Err(core_error(format!("ファイルが存在しません: {path}")));
     }
     if !p.is_file() {
-        return Err(format!("パスがファイルではありません: {path}"));
+        return Err(core_error(format!("パスがファイルではありません: {path}")));
     }
-    std::fs::read_to_string(&path).map_err(|e| format!("ファイル読み取りエラー: {e}"))
+    std::fs::read_to_string(&path).map_err(|e| core_error(format!("ファイル読み取りエラー: {e}")))
 }
 
 /// シンタックスハイライト: ファイルを読み込み、指定範囲のトークンを返す
@@ -42,14 +57,14 @@ pub fn highlight_range(
     path: String,
     start_line: u32,
     end_line: u32,
-) -> Result<Vec<TokenSpan>, String> {
+) -> Result<Vec<TokenSpan>, CoreError> {
     let language = match core_highlight::detect_language(&path) {
         Some(lang) => lang,
         None => return Ok(vec![]),
     };
 
     let content = read_file(path)?;
-    let tokens = core_highlight::tokenize(&content, language)?;
+    let tokens = core_highlight::tokenize(&content, language).map_err(core_error)?;
 
     Ok(tokens
         .into_iter()
@@ -60,7 +75,11 @@ pub fn highlight_range(
 /// Git Blame: 指定範囲の行に対する blame 情報を返す
 /// 非Gitリポジトリの場合は空Vecを返す（エラーにしない）
 #[uniffi::export]
-pub fn blame_range(path: String, start_line: u32, end_line: u32) -> Result<Vec<BlameLine>, String> {
+pub fn blame_range(
+    path: String,
+    start_line: u32,
+    end_line: u32,
+) -> Result<Vec<BlameLine>, CoreError> {
     match core_git::blame_file(&path) {
         Ok(lines) => Ok(lines
             .into_iter()
@@ -89,7 +108,10 @@ mod tests {
     fn open_project_nonexistent() {
         let result = open_project("/nonexistent/path".to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("パスが存在しません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("パスが存在しません"));
     }
 
     #[test]
@@ -100,7 +122,10 @@ mod tests {
 
         let result = open_project(file_path.to_str().unwrap().to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("ディレクトリではありません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ディレクトリではありません"));
     }
 
     #[test]
@@ -136,7 +161,10 @@ mod tests {
     fn read_file_nonexistent() {
         let result = read_file("/nonexistent/file.txt".to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("ファイルが存在しません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイルが存在しません"));
     }
 
     #[test]
@@ -144,7 +172,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let result = read_file(tmp.path().to_str().unwrap().to_string());
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("ファイルではありません"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイルではありません"));
     }
 
     #[test]

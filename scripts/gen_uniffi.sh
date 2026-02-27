@@ -17,7 +17,10 @@ mkdir -p "$OUTPUT_DIR"
 
 # まず cdylib をビルド（UniFFI メタデータを含む .dylib を生成）
 echo "--- cargo build (cdylib) ---"
-cargo build --manifest-path "$CORE_DIR/Cargo.toml" -p core_api
+(
+    cd "$CORE_DIR"
+    cargo build -p core_api
+)
 
 # dylib のパスを特定
 DYLIB_PATH="$CORE_DIR/target/debug/libcore_api.dylib"
@@ -29,11 +32,13 @@ fi
 
 # uniffi-bindgen で Swift バインディング生成
 echo "--- uniffi-bindgen generate --library ---"
-cargo run --manifest-path "$CORE_DIR/Cargo.toml" \
-    -p uniffi-bindgen -- \
-    generate --library "$DYLIB_PATH" \
-    --language swift \
-    --out-dir "$OUTPUT_DIR"
+(
+    cd "$CORE_DIR"
+    cargo run -p uniffi-bindgen -- \
+        generate --library "$DYLIB_PATH" \
+        --language swift \
+        --out-dir "$OUTPUT_DIR"
+)
 
 echo "=== 完了: $OUTPUT_DIR ==="
 ls -la "$OUTPUT_DIR"
