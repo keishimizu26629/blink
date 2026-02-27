@@ -1,0 +1,21 @@
+# AI planning docs (local only)
+.ai/
+
+# direnv (account credentials)
+.envrc
+
+# Rust build artifacts
+core/target/
+
+# macOS
+.DS_Store
+
+# Xcode
+mac-ui/DerivedData/
+mac-ui/RustLib/
+mac-ui/Generated/
+*.xcuserdata/
+
+# IDE
+.idea/
+.vscode/
