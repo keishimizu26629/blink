@@ -4,16 +4,16 @@ import SwiftUI
 struct CodeTextView: NSViewRepresentable {
     @Binding var text: String
     let tokens: [TokenSpan]
+    private let lineNumberWidth: CGFloat = 48
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
 
-    func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
-        guard let textView = scrollView.documentView as? NSTextView else {
-            return scrollView
-        }
+    func makeNSView(context: Context) -> CodeTextContainerView {
+        let containerView = CodeTextContainerView(gutterWidth: lineNumberWidth)
+        let scrollView = containerView.scrollView
+        let textView = containerView.textView
 
         textView.isEditable = false
         textView.delegate = context.coordinator
@@ -30,13 +30,13 @@ struct CodeTextView: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         textView.isVerticallyResizable = true
         textView.autoresizingMask = [.width]
-        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.widthTracksTextView = false
         textView.textContainer?.heightTracksTextView = false
 
         scrollView.hasHorizontalScroller = false
         scrollView.hasVerticalScroller = true
 
-        // NOTE: Temporarily disable NSRulerView to isolate rendering/interaction issue.
+        // Keep NSRulerView detached from NSScrollView ruler plumbing.
         scrollView.verticalRulerView = nil
         scrollView.hasVerticalRuler = false
         scrollView.rulersVisible = false
@@ -45,34 +45,38 @@ struct CodeTextView: NSViewRepresentable {
             logLayout(phase: "make", textView: textView, scrollView: scrollView)
         #endif
 
-        return scrollView
+        return containerView
     }
 
-    func updateNSView(_ scrollView: NSScrollView, context _: Context) {
-        guard let textView = scrollView.documentView as? NSTextView else { return }
+    func updateNSView(_ containerView: CodeTextContainerView, context _: Context) {
+        let scrollView = containerView.scrollView
+        let textView = containerView.textView
 
         if textView.string != text {
             textView.string = text
         }
         applySyntaxHighlight(to: textView)
 
-        let contentSize = scrollView.contentSize
+        let contentSize = scrollView.contentView.bounds.size
         let hasValidViewport = contentSize.width > 1 && contentSize.height > 1
         guard hasValidViewport else {
-            DispatchQueue.main.async { [weak scrollView, weak textView] in
-                guard let scrollView, let textView else { return }
-                let retrySize = scrollView.contentSize
+            DispatchQueue.main.async { [weak containerView, weak scrollView, weak textView] in
+                guard let containerView, let scrollView, let textView else { return }
+                let retrySize = scrollView.contentView.bounds.size
                 guard retrySize.width > 1, retrySize.height > 1 else { return }
 
-                textView.frame.size = retrySize
                 if let textContainer = textView.textContainer {
                     textContainer.containerSize = NSSize(
-                        width: retrySize.width,
+                        width: resolvedContainerWidth(
+                            textView: textView
+                        ),
                         height: CGFloat.greatestFiniteMagnitude
                     )
                     textView.layoutManager?.ensureLayout(for: textContainer)
                 }
+                containerView.layoutSubtreeIfNeeded()
                 textView.needsDisplay = true
+                containerView.lineNumberView.needsDisplay = true
 
                 #if DEBUG
                     logLayout(phase: "async-reflow", textView: textView, scrollView: scrollView)
@@ -87,10 +91,11 @@ struct CodeTextView: NSViewRepresentable {
             return
         }
 
-        textView.frame.size = contentSize
         if let textContainer = textView.textContainer {
             textContainer.containerSize = NSSize(
-                width: contentSize.width,
+                width: resolvedContainerWidth(
+                    textView: textView
+                ),
                 height: CGFloat.greatestFiniteMagnitude
             )
         }
@@ -98,7 +103,9 @@ struct CodeTextView: NSViewRepresentable {
         if let textContainer = textView.textContainer {
             textView.layoutManager?.ensureLayout(for: textContainer)
         }
+        containerView.layoutSubtreeIfNeeded()
         textView.needsDisplay = true
+        containerView.lineNumberView.needsDisplay = true
 
         #if DEBUG
             logLayout(phase: "update", textView: textView, scrollView: scrollView)
@@ -148,6 +155,14 @@ struct CodeTextView: NSViewRepresentable {
 
         textStorage.endEditing()
     }
+
+    private func resolvedContainerWidth(
+        textView: NSTextView
+    ) -> CGFloat {
+        let insetWidth = textView.textContainerInset.width * 2
+        let textViewBoundsWidth = textView.bounds.width
+        return max(1, textViewBoundsWidth - insetWidth)
+    }
 }
 
 extension CodeTextView {
@@ -165,16 +180,71 @@ extension CodeTextView {
     }
 }
 
+final class CodeTextContainerView: NSView {
+    let gutterWidth: CGFloat
+    let scrollView: NSScrollView
+    let textView: NSTextView
+    let lineNumberView: LineNumberRulerView
+
+    init(gutterWidth: CGFloat) {
+        self.gutterWidth = gutterWidth
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else {
+            fatalError("Expected NSTextView as scrollView.documentView")
+        }
+        self.scrollView = scrollView
+        self.textView = textView
+        lineNumberView = LineNumberRulerView(scrollView: scrollView, textView: textView)
+        super.init(frame: .zero)
+
+        addSubview(lineNumberView)
+        addSubview(scrollView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        let gutter = min(gutterWidth, max(0, bounds.width))
+        lineNumberView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: gutter,
+            height: bounds.height
+        )
+        scrollView.frame = NSRect(
+            x: gutter,
+            y: 0,
+            width: max(0, bounds.width - gutter),
+            height: bounds.height
+        )
+        lineNumberView.needsDisplay = true
+    }
+}
+
 final class LineNumberRulerView: NSRulerView {
     private weak var textView: NSTextView?
+    private weak var observedClipView: NSClipView?
     private let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
     private let foregroundColor = NSColor.secondaryLabelColor
 
-    init(textView: NSTextView) {
+    init(scrollView: NSScrollView, textView: NSTextView) {
         self.textView = textView
-        super.init(scrollView: textView.enclosingScrollView!, orientation: .verticalRuler)
+        super.init(scrollView: scrollView, orientation: .verticalRuler)
         clientView = textView
         ruleThickness = 48
+
+        observedClipView = scrollView.contentView
+        observedClipView?.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleClipBoundsChanged),
+            name: NSView.boundsDidChangeNotification,
+            object: observedClipView
+        )
     }
 
     @available(*, unavailable)
@@ -182,8 +252,17 @@ final class LineNumberRulerView: NSRulerView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func handleClipBoundsChanged() {
+        needsDisplay = true
+    }
+
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let textView,
+              let scrollView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer
         else { return }
@@ -199,7 +278,13 @@ final class LineNumberRulerView: NSRulerView {
         separatorPath.stroke()
 
         let text = textView.string as NSString
-        let visibleRect = textView.visibleRect
+        let clipBounds = scrollView.contentView.bounds
+        let visibleRect = NSRect(
+            x: 0,
+            y: clipBounds.origin.y - textView.textContainerOrigin.y,
+            width: textContainer.containerSize.width,
+            height: clipBounds.height
+        )
         let visibleGlyphRange = layoutManager.glyphRange(
             forBoundingRect: visibleRect,
             in: textContainer
@@ -235,7 +320,7 @@ final class LineNumberRulerView: NSRulerView {
                 effectiveRange: nil
             )
 
-            let relativeY = lineRect.minY - visibleRect.minY + self.convert(NSPoint.zero, from: self.clientView).y
+            let relativeY = lineRect.minY + textView.textContainerOrigin.y - clipBounds.origin.y
             let lineText = "\(lineNumber)" as NSString
             let size = lineText.size(withAttributes: attributes)
 
