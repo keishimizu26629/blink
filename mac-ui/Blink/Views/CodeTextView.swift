@@ -27,29 +27,23 @@ struct CodeTextView: NSViewRepresentable {
         textView.insertionPointColor = SyntaxTheme.defaultTextColor
         textView.textContainerInset = NSSize(width: 8, height: 8)
 
-        scrollView.hasHorizontalScroller = true
+        textView.isHorizontallyResizable = false
+        textView.isVerticallyResizable = true
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
+
+        scrollView.hasHorizontalScroller = false
         scrollView.hasVerticalScroller = true
 
-        textView.isHorizontallyResizable = true
-        textView.isVerticallyResizable = true
-        textView.autoresizingMask = [.width, .height]
+        // NOTE: Temporarily disable NSRulerView to isolate rendering/interaction issue.
+        scrollView.verticalRulerView = nil
+        scrollView.hasVerticalRuler = false
+        scrollView.rulersVisible = false
 
-        let contentSize = scrollView.contentSize
-        textView.minSize = NSSize(width: contentSize.width, height: contentSize.height)
-        textView.maxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        textView.textContainer?.widthTracksTextView = false
-        textView.textContainer?.heightTracksTextView = false
-        textView.textContainer?.containerSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        let rulerView = LineNumberRulerView(textView: textView)
-        scrollView.verticalRulerView = rulerView
-        scrollView.hasVerticalRuler = true
-        scrollView.rulersVisible = true
+        #if DEBUG
+            logLayout(phase: "make", textView: textView, scrollView: scrollView)
+        #endif
 
         return scrollView
     }
@@ -57,22 +51,59 @@ struct CodeTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context _: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
 
-        if textView.string == text {
-            applySyntaxHighlight(to: textView)
-            if let rulerView = scrollView.verticalRulerView as? LineNumberRulerView {
-                rulerView.needsDisplay = true
+        if textView.string != text {
+            textView.string = text
+        }
+        applySyntaxHighlight(to: textView)
+
+        let contentSize = scrollView.contentSize
+        let hasValidViewport = contentSize.width > 1 && contentSize.height > 1
+        guard hasValidViewport else {
+            DispatchQueue.main.async { [weak scrollView, weak textView] in
+                guard let scrollView, let textView else { return }
+                let retrySize = scrollView.contentSize
+                guard retrySize.width > 1, retrySize.height > 1 else { return }
+
+                textView.frame.size = retrySize
+                if let textContainer = textView.textContainer {
+                    textContainer.containerSize = NSSize(
+                        width: retrySize.width,
+                        height: CGFloat.greatestFiniteMagnitude
+                    )
+                    textView.layoutManager?.ensureLayout(for: textContainer)
+                }
+                textView.needsDisplay = true
+
+                #if DEBUG
+                    logLayout(phase: "async-reflow", textView: textView, scrollView: scrollView)
+                    logTextRenderingState(phase: "async-reflow", textView: textView)
+                #endif
             }
+
+            #if DEBUG
+                logLayout(phase: "update-skip-zero-size", textView: textView, scrollView: scrollView)
+                logTextRenderingState(phase: "update-skip-zero-size", textView: textView)
+            #endif
             return
         }
 
-        let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
-        textView.textStorage?.replaceCharacters(in: fullRange, with: text)
-
-        applySyntaxHighlight(to: textView)
-
-        if let rulerView = scrollView.verticalRulerView as? LineNumberRulerView {
-            rulerView.needsDisplay = true
+        textView.frame.size = contentSize
+        if let textContainer = textView.textContainer {
+            textContainer.containerSize = NSSize(
+                width: contentSize.width,
+                height: CGFloat.greatestFiniteMagnitude
+            )
         }
+
+        if let textContainer = textView.textContainer {
+            textView.layoutManager?.ensureLayout(for: textContainer)
+        }
+        textView.needsDisplay = true
+
+        #if DEBUG
+            logLayout(phase: "update", textView: textView, scrollView: scrollView)
+            logTextRenderingState(phase: "update", textView: textView)
+        #endif
     }
 
     private func applySyntaxHighlight(to textView: NSTextView) {
@@ -220,3 +251,68 @@ final class LineNumberRulerView: NSRulerView {
         }
     }
 }
+
+#if DEBUG
+    private func logLayout(phase: String, textView: NSTextView, scrollView: NSScrollView) {
+        let rulerFrame = scrollView.verticalRulerView?.frame ?? .zero
+        let contentViewFrame = scrollView.contentView.frame
+        let documentVisibleRect = scrollView.documentVisibleRect
+        let message =
+            "[CodeTextView:\(phase)] textLength=\(textView.string.count) " +
+            "contentSize=\(scrollView.contentSize) " +
+            "frame=\(textView.frame) " +
+            "visible=\(textView.visibleRect) " +
+            "container=\(textView.textContainer?.containerSize ?? .zero) " +
+            "textHidden=\(textView.isHidden) alpha=\(textView.alphaValue) " +
+            "rulerVisible=\(scrollView.hasVerticalRuler && scrollView.rulersVisible) " +
+            "rulerFrame=\(rulerFrame) contentViewFrame=\(contentViewFrame) " +
+            "documentVisibleRect=\(documentVisibleRect)"
+        debugLogToFileAndConsole(message)
+    }
+
+    private func debugLogToFileAndConsole(_ message: String) {
+        NSLog("%@", message)
+        let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("blink_code_text.log")
+
+        if let data = line.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: url.path),
+               let handle = try? FileHandle(forWritingTo: url)
+            {
+                try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: url)
+            }
+        }
+    }
+
+    private func logTextRenderingState(phase: String, textView: NSTextView) {
+        guard let textStorage = textView.textStorage else { return }
+        let textLength = textStorage.length
+        let sampleLocation = max(0, min(textLength - 1, 0))
+
+        var fgDesc = "nil"
+        var fontDesc = "nil"
+        if textLength > 0 {
+            if let color = textStorage.attribute(.foregroundColor, at: sampleLocation, effectiveRange: nil) as? NSColor {
+                fgDesc = color.description
+            }
+            if let font = textStorage.attribute(.font, at: sampleLocation, effectiveRange: nil) as? NSFont {
+                fontDesc = "\(font.fontName) \(font.pointSize)"
+            }
+        }
+
+        let glyphCount = textView.layoutManager?.numberOfGlyphs ?? -1
+        let usedRect: NSRect = textView.layoutManager
+            .flatMap { layoutManager in
+                textView.textContainer.map { textContainer in
+                    layoutManager.usedRect(for: textContainer)
+                }
+            } ?? .zero
+        debugLogToFileAndConsole(
+            "[CodeTextView:\(phase):render] len=\(textLength) glyphs=\(glyphCount) fg=\(fgDesc) font=\(fontDesc) usedRect=\(usedRect)"
+        )
+    }
+#endif
