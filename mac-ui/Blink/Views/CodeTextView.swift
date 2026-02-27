@@ -30,6 +30,7 @@ struct TokenSpan {
 // MARK: - CodeTextView
 
 /// NSTextView を SwiftUI にブリッジする読み取り専用コードビューア
+/// TODO: BlameGutterView とのスクロール同期（Phase 3+）
 struct CodeTextView: NSViewRepresentable {
     let text: String
     let tokens: [TokenSpan]

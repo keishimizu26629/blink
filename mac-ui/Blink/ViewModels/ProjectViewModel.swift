@@ -5,6 +5,8 @@ final class ProjectViewModel: ObservableObject {
     @Published var rootNodes: [FileNode] = []
     @Published var selectedFile: FileNode?
     @Published var fileContent: String?
+    @Published var isBlameVisible: Bool = false
+    @Published var blameLines: [BlameLineInfo] = []
     @Published var highlightTokens: [TokenSpan] = []
 
     /// プロジェクトを開く
@@ -23,6 +25,9 @@ final class ProjectViewModel: ObservableObject {
 
         // TODO: Replace with UniFFI call — highlight_range(path:, start_line:, end_line:)
         highlightTokens = Self.mockHighlightTokens(for: node.path, content: fileContent)
+
+        // TODO: Replace with UniFFI call — blame_range(path:, start_line:, end_line:)
+        blameLines = Self.mockBlameLines(for: node.path)
     }
 
     /// ディレクトリの展開/折りたたみ
@@ -115,19 +120,27 @@ final class ProjectViewModel: ObservableObject {
         ]
     }
 
-    /// モック: ファイル拡張子に応じた簡易ハイライトトークンを生成
-    /// TODO: UniFFI 接続後は highlight_range() の結果をそのまま使用
+    static func mockBlameLines(for _: String) -> [BlameLineInfo] {
+        (1 ... 10).map { line in
+            BlameLineInfo(
+                line: UInt32(line),
+                author: line <= 5 ? "Alice" : "Bob",
+                authorTime: line <= 5 ? 1_700_000_000 : 1_700_100_000,
+                summary: line <= 5 ? "initial commit" : "fix: update logic",
+                commit: line <= 5 ? "abcdef1" : "1234567",
+            )
+        }
+    }
+
     static func mockHighlightTokens(for path: String, content: String?) -> [TokenSpan] {
         guard let content, !content.isEmpty else { return [] }
         let ext = (path as NSString).pathExtension.lowercased()
 
-        // JS/TS 系のみモックトークンを返す（Rust 側が JS/TS 対応のため）
         guard ["js", "jsx", "ts", "tsx"].contains(ext) else { return [] }
 
         var tokens: [TokenSpan] = []
         let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
 
-        // 簡易キーワードマッチング（モック用）
         let keywords = ["const", "let", "var", "function", "return", "if", "else", "for",
                         "while", "import", "export", "from", "class", "interface", "type"]
 

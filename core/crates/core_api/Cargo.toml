@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 core_types = { path = "../core_types" }
 core_fs = { path = "../core_fs" }
+core_git = { path = "../core_git" }
 core_highlight = { path = "../core_highlight" }
 
 [dev-dependencies]

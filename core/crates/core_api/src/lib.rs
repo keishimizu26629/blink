@@ -51,13 +51,16 @@ pub fn highlight_range(
         .collect())
 }
 
-/// Git Blame（スタブ: Phase 3 で実装）
-pub fn blame_range(
-    _path: String,
-    _start_line: u32,
-    _end_line: u32,
-) -> Result<Vec<BlameLine>, String> {
-    Ok(vec![])
+/// Git Blame: 指定範囲の行に対する blame 情報を返す
+/// 非Gitリポジトリの場合は空Vecを返す（エラーにしない）
+pub fn blame_range(path: String, start_line: u32, end_line: u32) -> Result<Vec<BlameLine>, String> {
+    match core_git::blame_file(&path) {
+        Ok(lines) => Ok(lines
+            .into_iter()
+            .filter(|bl| bl.line >= start_line && bl.line <= end_line)
+            .collect()),
+        Err(_) => Ok(vec![]),
+    }
 }
 
 #[cfg(test)]
@@ -171,8 +174,8 @@ mod tests {
     }
 
     #[test]
-    fn blame_range_returns_empty() {
-        let result = blame_range("test.rs".to_string(), 1, 10);
+    fn blame_range_non_git_returns_empty() {
+        let result = blame_range("/tmp/nonexistent_file.rs".to_string(), 1, 10);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }

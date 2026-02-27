@@ -54,6 +54,7 @@ name = "core_api"
 version = "0.1.0"
 dependencies = [
  "core_fs",
+ "core_git",
  "core_highlight",
  "core_types",
  "tempfile",
