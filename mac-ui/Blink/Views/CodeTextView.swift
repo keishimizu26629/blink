@@ -15,13 +15,8 @@ struct CodeTextView: NSViewRepresentable {
             return scrollView
         }
 
-        scrollView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        scrollView.setContentCompressionResistancePriority(.required, for: .vertical)
-        scrollView.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        scrollView.setContentHuggingPriority(.defaultLow, for: .vertical)
-
+        textView.isEditable = false
         textView.delegate = context.coordinator
-        textView.isEditable = true
         textView.isSelectable = true
         textView.isRichText = false
         textView.importsGraphics = false
@@ -31,30 +26,30 @@ struct CodeTextView: NSViewRepresentable {
         textView.textColor = SyntaxTheme.defaultTextColor
         textView.insertionPointColor = SyntaxTheme.defaultTextColor
         textView.textContainerInset = NSSize(width: 8, height: 8)
-        textView.minSize = NSSize(width: 0, height: 0)
+
+        scrollView.hasHorizontalScroller = true
+        scrollView.hasVerticalScroller = true
+
+        textView.isHorizontallyResizable = true
+        textView.isVerticallyResizable = true
+        textView.autoresizingMask = [.width, .height]
+
+        let contentSize = scrollView.contentSize
+        textView.minSize = NSSize(width: contentSize.width, height: contentSize.height)
         textView.maxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
             height: CGFloat.greatestFiniteMagnitude
         )
-        textView.frame.size = scrollView.contentSize
-
-        textView.isHorizontallyResizable = false
-        textView.isVerticallyResizable = true
-        textView.autoresizingMask = [.width]
-        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.widthTracksTextView = false
         textView.textContainer?.heightTracksTextView = false
         textView.textContainer?.containerSize = NSSize(
-            width: scrollView.contentSize.width,
+            width: CGFloat.greatestFiniteMagnitude,
             height: CGFloat.greatestFiniteMagnitude
         )
-
         let rulerView = LineNumberRulerView(textView: textView)
         scrollView.verticalRulerView = rulerView
         scrollView.hasVerticalRuler = true
         scrollView.rulersVisible = true
-
-        scrollView.hasHorizontalScroller = false
-        scrollView.hasVerticalScroller = true
 
         return scrollView
     }
@@ -62,16 +57,16 @@ struct CodeTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context _: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
 
-        if let textContainer = textView.textContainer {
-            textContainer.containerSize = NSSize(
-                width: scrollView.contentSize.width,
-                height: CGFloat.greatestFiniteMagnitude
-            )
+        if textView.string == text {
+            applySyntaxHighlight(to: textView)
+            if let rulerView = scrollView.verticalRulerView as? LineNumberRulerView {
+                rulerView.needsDisplay = true
+            }
+            return
         }
 
-        if textView.string != text {
-            textView.string = text
-        }
+        let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+        textView.textStorage?.replaceCharacters(in: fullRange, with: text)
 
         applySyntaxHighlight(to: textView)
 
@@ -84,6 +79,7 @@ struct CodeTextView: NSViewRepresentable {
         guard let textStorage = textView.textStorage else { return }
 
         let fullText = textView.string as NSString
+        guard fullText.length > 0 else { return }
         let fullRange = NSRange(location: 0, length: fullText.length)
         textStorage.beginEditing()
         textStorage.setAttributes(
@@ -94,33 +90,29 @@ struct CodeTextView: NSViewRepresentable {
             range: fullRange
         )
 
-        guard !tokens.isEmpty else {
-            textStorage.endEditing()
-            return
-        }
+        if !tokens.isEmpty {
+            let lines = textView.string.split(separator: "\n", omittingEmptySubsequences: false)
+            var lineOffsets: [Int] = []
+            var offset = 0
+            for line in lines {
+                lineOffsets.append(offset)
+                offset += line.count + 1
+            }
 
-        let lines = textView.string.split(separator: "\n", omittingEmptySubsequences: false)
-        var lineOffsets: [Int] = []
-        var offset = 0
-        for line in lines {
-            lineOffsets.append(offset)
-            offset += line.count + 1
-        }
+            for token in tokens {
+                let lineIndex = Int(token.line) - 1
+                guard lineIndex >= 0, lineIndex < lineOffsets.count else { continue }
 
-        for token in tokens {
-            let lineIndex = Int(token.line) - 1
-            guard lineIndex >= 0, lineIndex < lineOffsets.count else { continue }
+                let lineStart = lineOffsets[lineIndex]
+                let start = lineStart + Int(token.startCol)
+                let length = Int(token.endCol) - Int(token.startCol)
 
-            let lineStart = lineOffsets[lineIndex]
-            let start = lineStart + Int(token.startCol)
-            let length = Int(token.endCol) - Int(token.startCol)
-            guard start >= 0, length > 0, start + length <= fullText.length else { continue }
+                guard start >= 0, length > 0, start + length <= fullText.length else { continue }
 
-            textStorage.addAttribute(
-                .foregroundColor,
-                value: SyntaxTheme.color(for: token.tokenType),
-                range: NSRange(location: start, length: length)
-            )
+                let range = NSRange(location: start, length: length)
+                let color = SyntaxTheme.color(for: token.tokenType)
+                textStorage.addAttribute(.foregroundColor, value: color, range: range)
+            }
         }
 
         textStorage.endEditing()
