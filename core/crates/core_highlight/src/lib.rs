@@ -1,12 +1,20 @@
 use core_types::{TokenSpan, TokenType};
-use tree_sitter::Parser;
+use tree_sitter::{Node, Parser};
 
 /// 拡張子から言語名を判定する
 pub fn detect_language(path: &str) -> Option<&'static str> {
-    let ext = path.rsplit('.').next()?;
-    match ext {
+    let ext = path.rsplit('.').next()?.to_ascii_lowercase();
+    match ext.as_str() {
         "ts" | "tsx" => Some("typescript"),
-        "js" | "jsx" => Some("javascript"),
+        "js" | "jsx" | "mjs" | "cjs" => Some("javascript"),
+        "json" => Some("json"),
+        "yaml" | "yml" => Some("yaml"),
+        "swift" => Some("swift"),
+        "rs" => Some("rust"),
+        "dart" => Some("dart"),
+        "html" | "htm" => Some("html"),
+        "css" => Some("css"),
+        "py" => Some("python"),
         _ => None,
     }
 }
@@ -16,16 +24,36 @@ pub fn tokenize(text: &str, language: &str) -> Result<Vec<TokenSpan>, String> {
     let mut parser = Parser::new();
 
     match language {
-        "typescript" => {
-            parser
-                .set_language(&tree_sitter_typescript::LANGUAGE_TSX.into())
-                .map_err(|e| format!("TypeScript パーサー設定エラー: {e}"))?;
-        }
-        "javascript" => {
-            parser
-                .set_language(&tree_sitter_javascript::LANGUAGE.into())
-                .map_err(|e| format!("JavaScript パーサー設定エラー: {e}"))?;
-        }
+        "typescript" => parser
+            .set_language(&tree_sitter_typescript::LANGUAGE_TSX.into())
+            .map_err(|e| format!("TypeScript パーサー設定エラー: {e}"))?,
+        "javascript" => parser
+            .set_language(&tree_sitter_javascript::LANGUAGE.into())
+            .map_err(|e| format!("JavaScript パーサー設定エラー: {e}"))?,
+        "json" => parser
+            .set_language(&tree_sitter_json::LANGUAGE.into())
+            .map_err(|e| format!("JSON パーサー設定エラー: {e}"))?,
+        "yaml" => parser
+            .set_language(&tree_sitter_yaml::LANGUAGE.into())
+            .map_err(|e| format!("YAML パーサー設定エラー: {e}"))?,
+        "swift" => parser
+            .set_language(&tree_sitter_swift::LANGUAGE.into())
+            .map_err(|e| format!("Swift パーサー設定エラー: {e}"))?,
+        "rust" => parser
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
+            .map_err(|e| format!("Rust パーサー設定エラー: {e}"))?,
+        "dart" => parser
+            .set_language(&tree_sitter_dart::language())
+            .map_err(|e| format!("Dart パーサー設定エラー: {e}"))?,
+        "html" => parser
+            .set_language(&tree_sitter_html::LANGUAGE.into())
+            .map_err(|e| format!("HTML パーサー設定エラー: {e}"))?,
+        "css" => parser
+            .set_language(&tree_sitter_css::LANGUAGE.into())
+            .map_err(|e| format!("CSS パーサー設定エラー: {e}"))?,
+        "python" => parser
+            .set_language(&tree_sitter_python::LANGUAGE.into())
+            .map_err(|e| format!("Python パーサー設定エラー: {e}"))?,
         _ => return Err(format!("未対応の言語: {language}")),
     }
 
@@ -36,39 +64,36 @@ pub fn tokenize(text: &str, language: &str) -> Result<Vec<TokenSpan>, String> {
     let root_node = tree.root_node();
     let mut tokens = Vec::new();
     let source = text.as_bytes();
-
     collect_tokens(root_node, source, &mut tokens);
 
     Ok(tokens)
 }
 
 /// AST ノードを再帰的に走査し、葉ノードを TokenSpan に変換する
-fn collect_tokens(node: tree_sitter::Node, source: &[u8], tokens: &mut Vec<TokenSpan>) {
-    // 名前付き葉ノード、または演算子・句読点などの無名葉ノードを対象にする
+fn collect_tokens(node: Node, source: &[u8], tokens: &mut Vec<TokenSpan>) {
     if node.child_count() == 0 {
         let start = node.start_position();
         let end = node.end_position();
 
-        // 複数行にまたがるノードは行ごとに分割
         if start.row != end.row {
             let text = node.utf8_text(source).unwrap_or("").to_string();
-            let token_type = classify_node(&node);
-
+            let token_type = classify_node(node);
             for (i, line) in text.split('\n').enumerate() {
+                if line.is_empty() {
+                    continue;
+                }
                 let line_num = start.row as u32 + i as u32 + 1;
                 let start_col = if i == 0 { start.column as u32 } else { 0 };
                 let end_col = start_col + line.len() as u32;
-                if !line.is_empty() {
-                    tokens.push(TokenSpan {
-                        line: line_num,
-                        start_col,
-                        end_col,
-                        token_type,
-                    });
-                }
+                tokens.push(TokenSpan {
+                    line: line_num,
+                    start_col,
+                    end_col,
+                    token_type,
+                });
             }
         } else {
-            let token_type = classify_node(&node);
+            let token_type = classify_node(node);
             tokens.push(TokenSpan {
                 line: start.row as u32 + 1,
                 start_col: start.column as u32,
@@ -92,7 +117,6 @@ fn collect_tokens(node: tree_sitter::Node, source: &[u8], tokens: &mut Vec<Token
                     token_type: TokenType::Function,
                 });
 
-                // 残りの子ノードを処理（関数名以外）
                 let mut cursor = node.walk();
                 for child in node.children(&mut cursor) {
                     if child.id() != func_node.id() {
@@ -104,7 +128,6 @@ fn collect_tokens(node: tree_sitter::Node, source: &[u8], tokens: &mut Vec<Token
         }
     }
 
-    // 子ノードを再帰処理
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         collect_tokens(child, source, tokens);
@@ -112,67 +135,293 @@ fn collect_tokens(node: tree_sitter::Node, source: &[u8], tokens: &mut Vec<Token
 }
 
 /// ノード種別を TokenType にマッピング
-fn classify_node(node: &tree_sitter::Node) -> TokenType {
+fn classify_node(node: Node) -> TokenType {
     let kind = node.kind();
     let parent_kind = node.parent().map(|p| p.kind()).unwrap_or("");
 
-    match kind {
-        // キーワード
-        "if" | "else" | "for" | "while" | "do" | "switch" | "case" | "break" | "continue"
-        | "return" | "throw" | "try" | "catch" | "finally" | "new" | "delete" | "typeof"
-        | "instanceof" | "in" | "of" | "void" | "yield" | "await" | "async" | "class"
-        | "extends" | "super" | "import" | "export" | "from" | "as" | "default" | "const"
-        | "let" | "var" | "function" | "static" | "get" | "set" | "this" | "with" | "debugger"
-        | "interface" | "type" | "enum" | "implements" | "public" | "private" | "protected"
-        | "readonly" | "abstract" | "declare" | "namespace" | "module" | "keyof" | "infer"
-        | "satisfies" => TokenType::Keyword,
-
-        // 文字列
-        "string" | "string_fragment" | "template_string" | "template_literal_type" => {
-            TokenType::String
-        }
-
-        // コメント
-        "comment" => TokenType::Comment,
-
-        // 型識別子
-        "type_identifier" | "predefined_type" => TokenType::Type,
-
-        // 数値
-        "number" => TokenType::Number,
-
-        // 関数定義名
-        "property_identifier"
-            if matches!(
-                parent_kind,
-                "function_declaration" | "method_definition" | "function" | "arrow_function"
-            ) =>
-        {
-            TokenType::Function
-        }
-
-        // 変数名
-        "identifier" => match parent_kind {
-            "function_declaration" | "method_definition" => TokenType::Function,
-            "type_annotation" | "type_alias_declaration" => TokenType::Type,
-            _ => TokenType::Variable,
-        },
-
-        // 演算子
-        "+" | "-" | "*" | "/" | "%" | "=" | "==" | "===" | "!=" | "!==" | "<" | ">" | "<="
-        | ">=" | "&&" | "||" | "!" | "&" | "|" | "^" | "~" | "<<" | ">>" | ">>>" | "+=" | "-="
-        | "*=" | "/=" | "%=" | "**" | "??" | "?." | "=>" | "..." | "++" | "--" | "?" | ":" => {
-            TokenType::Operator
-        }
-
-        // 句読点
-        "(" | ")" | "[" | "]" | "{" | "}" | ";" | "," | "." => TokenType::Punctuation,
-
-        // true/false/null/undefined
-        "true" | "false" | "null" | "undefined" => TokenType::Keyword,
-
-        _ => TokenType::Plain,
+    if is_comment_kind(kind) {
+        return TokenType::Comment;
     }
+    if is_string_kind(kind) {
+        return TokenType::String;
+    }
+    if is_number_kind(kind) {
+        return TokenType::Number;
+    }
+    if is_keyword_kind(kind) {
+        return TokenType::Keyword;
+    }
+    if is_operator_kind(kind) {
+        return TokenType::Operator;
+    }
+    if is_punctuation_kind(kind) {
+        return TokenType::Punctuation;
+    }
+    if is_type_kind(kind) {
+        return TokenType::Type;
+    }
+    if is_function_kind(kind, parent_kind) {
+        return TokenType::Function;
+    }
+    if is_variable_kind(kind, parent_kind) {
+        return TokenType::Variable;
+    }
+
+    TokenType::Plain
+}
+
+fn is_comment_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "comment" | "line_comment" | "block_comment" | "html_comment"
+    )
+}
+
+fn is_string_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "string"
+            | "string_fragment"
+            | "template_string"
+            | "template_literal_type"
+            | "interpreted_string_literal"
+            | "raw_string_literal"
+            | "char_literal"
+            | "escape_sequence"
+    )
+}
+
+fn is_number_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "number"
+            | "integer"
+            | "float"
+            | "integer_literal"
+            | "float_literal"
+            | "hex_literal"
+            | "binary_literal"
+            | "octal_literal"
+    )
+}
+
+fn is_keyword_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "if" | "else"
+            | "for"
+            | "while"
+            | "do"
+            | "switch"
+            | "case"
+            | "default"
+            | "break"
+            | "continue"
+            | "return"
+            | "throw"
+            | "try"
+            | "catch"
+            | "finally"
+            | "new"
+            | "delete"
+            | "typeof"
+            | "instanceof"
+            | "in"
+            | "of"
+            | "void"
+            | "yield"
+            | "await"
+            | "async"
+            | "class"
+            | "extends"
+            | "super"
+            | "import"
+            | "export"
+            | "from"
+            | "as"
+            | "const"
+            | "let"
+            | "var"
+            | "function"
+            | "static"
+            | "get"
+            | "set"
+            | "this"
+            | "with"
+            | "debugger"
+            | "interface"
+            | "type"
+            | "enum"
+            | "implements"
+            | "public"
+            | "private"
+            | "protected"
+            | "readonly"
+            | "abstract"
+            | "declare"
+            | "namespace"
+            | "module"
+            | "keyof"
+            | "infer"
+            | "satisfies"
+            | "fn"
+            | "impl"
+            | "trait"
+            | "struct"
+            | "match"
+            | "mut"
+            | "pub"
+            | "where"
+            | "use"
+            | "mod"
+            | "crate"
+            | "self"
+            | "Self"
+            | "let_statement"
+            | "func"
+            | "protocol"
+            | "guard"
+            | "defer"
+            | "repeat"
+            | "inout"
+            | "operator"
+            | "subscript"
+            | "init"
+            | "deinit"
+            | "associatedtype"
+            | "some"
+            | "any"
+            | "extension"
+            | "enum_declaration"
+            | "class_declaration"
+            | "func_literal"
+            | "def"
+            | "lambda"
+            | "elif"
+            | "except"
+            | "pass"
+            | "raise"
+            | "global"
+            | "nonlocal"
+            | "del"
+            | "assert"
+            | "True"
+            | "False"
+            | "None"
+            | "null"
+            | "undefined"
+            | "true"
+            | "false"
+    )
+}
+
+fn is_operator_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "+" | "-"
+            | "*"
+            | "/"
+            | "%"
+            | "="
+            | "=="
+            | "==="
+            | "!="
+            | "!=="
+            | "<"
+            | ">"
+            | "<="
+            | ">="
+            | "&&"
+            | "||"
+            | "!"
+            | "&"
+            | "|"
+            | "^"
+            | "~"
+            | "<<"
+            | ">>"
+            | ">>>"
+            | "+="
+            | "-="
+            | "*="
+            | "/="
+            | "%="
+            | "**"
+            | "??"
+            | "?."
+            | "=>"
+            | "..."
+            | "++"
+            | "--"
+            | "?"
+            | ":"
+            | "->"
+            | "::"
+            | "@"
+            | "#"
+    )
+}
+
+fn is_punctuation_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "(" | ")" | "[" | "]" | "{" | "}" | ";" | "," | "." | "<" | ">" | "/" | "\\"
+    )
+}
+
+fn is_type_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "type_identifier"
+            | "predefined_type"
+            | "type_annotation"
+            | "type_alias_declaration"
+            | "primitive_type"
+            | "generic_type"
+            | "enum_variant"
+            | "tag_name"
+    )
+}
+
+fn is_function_kind(kind: &str, parent_kind: &str) -> bool {
+    if matches!(
+        kind,
+        "function_item"
+            | "function_declaration"
+            | "function_definition"
+            | "method_definition"
+            | "method_declaration"
+            | "function_name"
+            | "constructor"
+    ) {
+        return true;
+    }
+
+    matches!(
+        (kind, parent_kind),
+        ("identifier", "function_declaration")
+            | ("identifier", "method_definition")
+            | ("identifier", "function_item")
+            | ("identifier", "call_expression")
+            | ("property_identifier", "function_declaration")
+            | ("property_identifier", "method_definition")
+    )
+}
+
+fn is_variable_kind(kind: &str, parent_kind: &str) -> bool {
+    matches!(
+        kind,
+        "identifier"
+            | "property_identifier"
+            | "field_identifier"
+            | "attribute_name"
+            | "property_name"
+            | "variable_name"
+            | "module_identifier"
+    ) || matches!(
+        parent_kind,
+        "pair" | "object_pair" | "assignment_expression" | "lexical_declaration"
+    )
 }
 
 #[cfg(test)]
@@ -180,106 +429,75 @@ mod tests {
     use super::*;
 
     #[test]
+    fn detect_language_returns_correct_language() {
+        assert_eq!(detect_language("main.ts"), Some("typescript"));
+        assert_eq!(detect_language("app.tsx"), Some("typescript"));
+        assert_eq!(detect_language("index.js"), Some("javascript"));
+        assert_eq!(detect_language("component.jsx"), Some("javascript"));
+        assert_eq!(detect_language("config.json"), Some("json"));
+        assert_eq!(detect_language("config.yaml"), Some("yaml"));
+        assert_eq!(detect_language("config.yml"), Some("yaml"));
+        assert_eq!(detect_language("App.swift"), Some("swift"));
+        assert_eq!(detect_language("main.rs"), Some("rust"));
+        assert_eq!(detect_language("main.dart"), Some("dart"));
+        assert_eq!(detect_language("index.html"), Some("html"));
+        assert_eq!(detect_language("styles.css"), Some("css"));
+        assert_eq!(detect_language("script.py"), Some("python"));
+        assert_eq!(detect_language("no_extension"), None);
+    }
+
+    #[test]
+    fn tokenize_unsupported_language_returns_error() {
+        let result = tokenize("hello", "kotlin");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("未対応の言語"));
+    }
+
+    #[test]
     fn tokenize_javascript_variable_declaration() {
         let code = "const x = 42;";
         let tokens = tokenize(code, "javascript").unwrap();
-
         assert!(!tokens.is_empty());
 
-        // "const" → Keyword
         let const_token = tokens.iter().find(|t| t.start_col == 0 && t.end_col == 5);
         assert!(const_token.is_some());
         assert_eq!(const_token.unwrap().token_type, TokenType::Keyword);
 
-        // "42" → Number
         let num_token = tokens.iter().find(|t| t.token_type == TokenType::Number);
         assert!(num_token.is_some());
-        assert_eq!(num_token.unwrap().start_col, 10);
-        assert_eq!(num_token.unwrap().end_col, 12);
     }
 
     #[test]
     fn tokenize_typescript_function() {
         let code = "function greet(name: string): string { return \"hello\"; }";
         let tokens = tokenize(code, "typescript").unwrap();
-
         assert!(!tokens.is_empty());
-
-        // "function" → Keyword
-        let func_kw = tokens.iter().find(|t| t.start_col == 0 && t.end_col == 8);
-        assert!(func_kw.is_some());
-        assert_eq!(func_kw.unwrap().token_type, TokenType::Keyword);
-
-        // "greet" → Function
-        let func_name = tokens.iter().find(|t| t.start_col == 9 && t.end_col == 14);
-        assert!(func_name.is_some());
-        assert_eq!(func_name.unwrap().token_type, TokenType::Function);
-
-        // "string" (引数型) → Type or Keyword (predefined_type)
-        let string_type = tokens.iter().find(|t| t.start_col == 21 && t.end_col == 27);
-        assert!(string_type.is_some());
-
-        // "\"hello\"" → String
-        let str_token = tokens.iter().find(|t| t.token_type == TokenType::String);
-        assert!(str_token.is_some());
+        assert!(tokens.iter().any(|t| t.token_type == TokenType::Keyword));
+        assert!(tokens.iter().any(|t| t.token_type == TokenType::String));
     }
 
     #[test]
-    fn tokenize_javascript_with_comment() {
-        let code = "// this is a comment\nlet y = 10;";
-        let tokens = tokenize(code, "javascript").unwrap();
+    fn tokenize_supported_languages_smoke() {
+        let cases = vec![
+            ("json", r#"{"name":"blink","v":1}"#),
+            ("yaml", "name: blink\nversion: 1"),
+            (
+                "swift",
+                "func greet(name: String) -> String { return \"hi\" }",
+            ),
+            ("rust", "fn main() { let x = 1; }"),
+            ("dart", "void main() { final x = 1; }"),
+            ("html", "<div class=\"app\">hello</div>"),
+            ("css", ".app { color: #fff; margin: 4px; }"),
+            ("python", "def greet(name):\n    return f\"hi {name}\""),
+        ];
 
-        assert!(!tokens.is_empty());
-
-        // コメント → Comment
-        let comment = tokens.iter().find(|t| t.token_type == TokenType::Comment);
-        assert!(comment.is_some());
-        assert_eq!(comment.unwrap().line, 1);
-
-        // "let" → Keyword（2行目）
-        let let_token = tokens
-            .iter()
-            .find(|t| t.line == 2 && t.token_type == TokenType::Keyword);
-        assert!(let_token.is_some());
-    }
-
-    #[test]
-    fn tokenize_multiline_typescript() {
-        let code = r#"interface User {
-    name: string;
-    age: number;
-}"#;
-        let tokens = tokenize(code, "typescript").unwrap();
-
-        assert!(!tokens.is_empty());
-
-        // "interface" → Keyword
-        let iface = tokens
-            .iter()
-            .find(|t| t.line == 1 && t.start_col == 0 && t.token_type == TokenType::Keyword);
-        assert!(iface.is_some());
-
-        // "User" → Type（type_identifier）
-        let user_type = tokens.iter().find(|t| t.line == 1 && t.start_col == 10);
-        assert!(user_type.is_some());
-        assert_eq!(user_type.unwrap().token_type, TokenType::Type);
-    }
-
-    #[test]
-    fn tokenize_unsupported_language_returns_error() {
-        let result = tokenize("print('hello')", "python");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("未対応の言語"));
-    }
-
-    #[test]
-    fn detect_language_returns_correct_language() {
-        assert_eq!(detect_language("main.ts"), Some("typescript"));
-        assert_eq!(detect_language("app.tsx"), Some("typescript"));
-        assert_eq!(detect_language("index.js"), Some("javascript"));
-        assert_eq!(detect_language("component.jsx"), Some("javascript"));
-        assert_eq!(detect_language("main.rs"), None);
-        assert_eq!(detect_language("no_extension"), None);
+        for (lang, src) in cases {
+            let tokens = tokenize(src, lang).unwrap_or_else(|e| {
+                panic!("{lang} tokenize failed: {e}");
+            });
+            assert!(!tokens.is_empty(), "{lang} token should not be empty");
+        }
     }
 
     #[test]

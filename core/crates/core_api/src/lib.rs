@@ -180,7 +180,11 @@ mod tests {
 
     #[test]
     fn highlight_range_unsupported_lang_returns_empty() {
-        let result = highlight_range("test.rs".to_string(), 1, 10);
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.txt");
+        fs::write(&file_path, "plain text").unwrap();
+
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 1, 10);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }

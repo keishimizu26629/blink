@@ -1,50 +1,55 @@
 import AppKit
 
-/// TokenType に対応する色を定義するシンタックステーマ（One Dark 風）
+/// TokenType に対応する高コントラストの黒基調シンタックステーマ
 enum SyntaxTheme {
     /// UniFFI 生成の TokenType enum から NSColor を返す
     static func color(for tokenType: TokenType) -> NSColor {
         switch tokenType {
         case .keyword:
-            // ピンク / マゼンタ (#C678DD)
-            NSColor(red: 0.776, green: 0.471, blue: 0.867, alpha: 1.0)
+            // 赤寄りピンク (#FF7B72)
+            NSColor(red: 1.000, green: 0.482, blue: 0.447, alpha: 1.0)
         case .string:
-            // 緑 (#98C379)
-            NSColor(red: 0.596, green: 0.765, blue: 0.475, alpha: 1.0)
+            // 明るいグリーン (#7EE787)
+            NSColor(red: 0.494, green: 0.906, blue: 0.529, alpha: 1.0)
         case .comment:
-            // グレー (#5C6370)
-            NSColor(red: 0.361, green: 0.388, blue: 0.439, alpha: 1.0)
+            // コメントグレー (#8B949E)
+            NSColor(red: 0.545, green: 0.580, blue: 0.620, alpha: 1.0)
         case .type:
-            // シアン (#56B6C2)
-            NSColor(red: 0.337, green: 0.714, blue: 0.761, alpha: 1.0)
+            // シアンブルー (#79C0FF)
+            NSColor(red: 0.475, green: 0.753, blue: 1.000, alpha: 1.0)
         case .function:
-            // 黄 (#E5C07B)
-            NSColor(red: 0.898, green: 0.753, blue: 0.482, alpha: 1.0)
+            // パープル (#D2A8FF)
+            NSColor(red: 0.824, green: 0.659, blue: 1.000, alpha: 1.0)
         case .number:
-            // オレンジ (#D19A66)
-            NSColor(red: 0.820, green: 0.604, blue: 0.400, alpha: 1.0)
+            // ゴールド (#F2CC60)
+            NSColor(red: 0.949, green: 0.800, blue: 0.376, alpha: 1.0)
         case .operator:
-            // 白 (#ABB2BF)
-            NSColor(red: 0.671, green: 0.698, blue: 0.749, alpha: 1.0)
+            // ライトグレー (#E6EDF3)
+            NSColor(red: 0.902, green: 0.929, blue: 0.953, alpha: 1.0)
         case .punctuation:
-            // 白（やや暗め） (#ABB2BF)
-            NSColor(red: 0.671, green: 0.698, blue: 0.749, alpha: 1.0)
+            // ミディアムグレー (#C9D1D9)
+            NSColor(red: 0.788, green: 0.820, blue: 0.851, alpha: 1.0)
         case .variable:
-            // 赤味白 (#E06C75)
-            NSColor(red: 0.878, green: 0.424, blue: 0.459, alpha: 1.0)
+            // オレンジ (#FFA657)
+            NSColor(red: 1.000, green: 0.651, blue: 0.341, alpha: 1.0)
         case .plain:
-            // 白 (#ABB2BF)
-            NSColor(red: 0.671, green: 0.698, blue: 0.749, alpha: 1.0)
+            // ライトグレー (#E6EDF3)
+            defaultTextColor
         }
     }
 
-    /// ダークモード背景色 (#282C34)
+    /// 背景色 (#0B0D10)
     static var backgroundColor: NSColor {
-        NSColor(red: 0.157, green: 0.173, blue: 0.204, alpha: 1.0)
+        NSColor(red: 0.043, green: 0.051, blue: 0.063, alpha: 1.0)
     }
 
-    /// デフォルトテキスト色 (#ABB2BF)
+    /// デフォルトテキスト色 (#E6EDF3)
     static var defaultTextColor: NSColor {
-        NSColor(red: 0.671, green: 0.698, blue: 0.749, alpha: 1.0)
+        NSColor(red: 0.902, green: 0.929, blue: 0.953, alpha: 1.0)
+    }
+
+    /// 行番号色 (#9BA6B2)
+    static var lineNumberColor: NSColor {
+        NSColor(red: 0.608, green: 0.651, blue: 0.698, alpha: 1.0)
     }
 }

@@ -2,6 +2,11 @@ import Foundation
 
 @MainActor
 final class ProjectViewModel: ObservableObject {
+    private enum SettingsKeys {
+        static let windowOpacity = "blink.window.opacity"
+        static let legacyEditorOpacity = "blink.editor.opacity"
+    }
+
     @Published var rootNodes: [TreeNode] = []
     @Published var selectedFile: TreeNode?
     @Published var fileContent: String?
@@ -9,10 +14,28 @@ final class ProjectViewModel: ObservableObject {
     @Published var blameLines: [BlameLine] = []
     @Published var highlightTokens: [TokenSpan] = []
     @Published var errorMessage: String?
+    @Published var windowOpacity: Double
 
     private var rootPath: String = ""
     private var securityScopedDirectoryURL: URL?
     private var hasActiveSecurityScope = false
+
+    init() {
+        let defaults = UserDefaults.standard
+        let savedOpacity = (defaults.object(forKey: SettingsKeys.windowOpacity) as? Double)
+            ?? (defaults.object(forKey: SettingsKeys.legacyEditorOpacity) as? Double)
+            ?? 1.0
+        windowOpacity = Self.clampOpacity(savedOpacity)
+    }
+
+    func updateWindowOpacity(_ value: Double) {
+        let clampedValue = Self.clampOpacity(value)
+        if abs(windowOpacity - clampedValue) < 0.000_1 {
+            return
+        }
+        windowOpacity = clampedValue
+        UserDefaults.standard.set(clampedValue, forKey: SettingsKeys.windowOpacity)
+    }
 
     /// Security-scoped URL からプロジェクトを開く
     func openProject(url: URL) async {
@@ -119,5 +142,9 @@ final class ProjectViewModel: ObservableObject {
 
         hasActiveSecurityScope = selectedURL.startAccessingSecurityScopedResource()
         securityScopedDirectoryURL = selectedURL
+    }
+
+    private static func clampOpacity(_ value: Double) -> Double {
+        min(max(value, 0.6), 1.0)
     }
 }
