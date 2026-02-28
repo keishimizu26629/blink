@@ -208,8 +208,7 @@ fn is_number_kind(kind: &str) -> bool {
 fn is_keyword_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "if"
-            | "else"
+        "if" | "else"
             | "for"
             | "while"
             | "do"
@@ -482,7 +481,10 @@ mod tests {
         let cases = vec![
             ("json", r#"{"name":"blink","v":1}"#),
             ("yaml", "name: blink\nversion: 1"),
-            ("swift", "func greet(name: String) -> String { return \"hi\" }"),
+            (
+                "swift",
+                "func greet(name: String) -> String { return \"hi\" }",
+            ),
             ("rust", "fn main() { let x = 1; }"),
             ("dart", "void main() { final x = 1; }"),
             ("html", "<div class=\"app\">hello</div>"),
