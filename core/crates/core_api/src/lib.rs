@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use core_types::{BlameLine, FileNode, TokenSpan};
+use core_types::{BlameDiff, BlameLine, FileNode, TokenSpan};
 
 uniffi::setup_scaffolding!();
 
@@ -87,6 +87,12 @@ pub fn blame_range(
             .collect()),
         Err(_) => Ok(vec![]),
     }
+}
+
+/// Blame 行で選択したコミットの差分を返す
+#[uniffi::export]
+pub fn blame_commit_diff(path: String, commit: String) -> Result<BlameDiff, CoreError> {
+    core_git::blame_commit_diff(&path, &commit).map_err(core_error)
 }
 
 #[cfg(test)]
@@ -220,5 +226,11 @@ mod tests {
         let result = blame_range("/tmp/nonexistent_file.rs".to_string(), 1, 10);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn blame_commit_diff_invalid_commit_returns_error() {
+        let result = blame_commit_diff(file!().to_string(), "invalid-commit".to_string());
+        assert!(result.is_err());
     }
 }

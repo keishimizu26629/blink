@@ -51,6 +51,14 @@ pub struct BlameLine {
     pub commit: String,
 }
 
+/// Blame 行から参照するコミット差分
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct BlameDiff {
+    pub commit: String,
+    pub path: String,
+    pub diff_text: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,5 +108,16 @@ mod tests {
         };
         assert_eq!(blame.line, 42);
         assert_eq!(blame.author, "Alice");
+    }
+
+    #[test]
+    fn blame_diff_creation() {
+        let diff = BlameDiff {
+            commit: "abc1234".into(),
+            path: "/tmp/file.rs".into(),
+            diff_text: "@@ -1 +1 @@\n-old\n+new\n".into(),
+        };
+        assert_eq!(diff.commit, "abc1234");
+        assert!(diff.diff_text.contains("+new"));
     }
 }

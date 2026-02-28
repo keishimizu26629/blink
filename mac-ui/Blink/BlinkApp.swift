@@ -2,24 +2,26 @@ import SwiftUI
 
 @main
 struct BlinkApp: App {
-    @StateObject private var viewModel = ProjectViewModel()
+    @FocusedValue(\.projectViewModel) private var focusedProjectViewModel
 
     var body: some Scene {
         WindowGroup {
-            ContentView(viewModel: viewModel)
+            ContentView()
                 .frame(minWidth: 800, minHeight: 500)
         }
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Open Folder…") {
-                    openFolder()
+                    openFolder(for: focusedProjectViewModel)
                 }
                 .keyboardShortcut("o", modifiers: [.command])
+                .disabled(focusedProjectViewModel == nil)
             }
         }
     }
 
-    private func openFolder() {
+    private func openFolder(for viewModel: ProjectViewModel?) {
+        guard let viewModel else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -31,5 +33,16 @@ struct BlinkApp: App {
                 await viewModel.openProject(url: url)
             }
         }
+    }
+}
+
+private struct ProjectViewModelFocusedValueKey: FocusedValueKey {
+    typealias Value = ProjectViewModel
+}
+
+extension FocusedValues {
+    var projectViewModel: ProjectViewModel? {
+        get { self[ProjectViewModelFocusedValueKey.self] }
+        set { self[ProjectViewModelFocusedValueKey.self] = newValue }
     }
 }
