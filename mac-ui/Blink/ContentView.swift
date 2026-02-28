@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -23,33 +24,38 @@ struct ContentView: View {
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
         } detail: {
-            if let content = viewModel.fileContent {
-                HStack(spacing: 0) {
-                    if viewModel.isBlameVisible {
-                        ScrollView(.vertical, showsIndicators: false) {
-                            BlameGutterView(blameLines: viewModel.blameLines)
+            ZStack {
+                Color(nsColor: SyntaxTheme.backgroundColor)
+                    .ignoresSafeArea()
+
+                if let content = viewModel.fileContent {
+                    HStack(spacing: 0) {
+                        if viewModel.isBlameVisible {
+                            ScrollView(.vertical, showsIndicators: false) {
+                                BlameGutterView(blameLines: viewModel.blameLines)
+                            }
+                            .frame(width: 130)
+
+                            Divider()
                         }
-                        .frame(width: 130)
 
-                        Divider()
+                        CodeTextView(
+                            text: Binding(
+                                get: { viewModel.fileContent ?? content },
+                                set: { viewModel.fileContent = $0 }
+                            ),
+                            tokens: viewModel.highlightTokens
+                        )
+                        .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+                        .layoutPriority(1)
                     }
-
-                    CodeTextView(
-                        text: Binding(
-                            get: { viewModel.fileContent ?? content },
-                            set: { viewModel.fileContent = $0 }
-                        ),
-                        tokens: viewModel.highlightTokens
-                    )
-                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
-                    .layoutPriority(1)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Text("ファイルを選択してください")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text("フォルダまたはファイルを選択してください")
+                        .font(.title3)
+                        .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.9))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         .toolbar {
@@ -70,7 +76,30 @@ struct ContentView: View {
                 .help("Git Blame の表示切替")
                 .disabled(viewModel.fileContent == nil)
             }
+            ToolbarItem(placement: .automatic) {
+                HStack(spacing: 8) {
+                    Image(systemName: "circle.lefthalf.filled")
+                        .foregroundStyle(.secondary)
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.windowOpacity },
+                            set: { viewModel.updateWindowOpacity($0) }
+                        ),
+                        in: 0.6 ... 1.0
+                    )
+                    .frame(width: 140)
+                    Text("\(Int(viewModel.windowOpacity * 100))%")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .frame(width: 42, alignment: .trailing)
+                }
+                .help("ウィンドウ不透明度")
+            }
         }
+        .background(
+            WindowOpacityConfigurator(opacity: viewModel.windowOpacity)
+                .allowsHitTesting(false)
+        )
         .fileImporter(
             isPresented: $isFolderImporterPresented,
             allowedContentTypes: [.folder],
@@ -106,5 +135,30 @@ struct ContentView: View {
                 }
             }
         )
+    }
+}
+
+private struct WindowOpacityConfigurator: NSViewRepresentable {
+    let opacity: Double
+
+    func makeNSView(context _: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            applyWindowOpacity(opacity, to: view.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context _: Context) {
+        DispatchQueue.main.async {
+            applyWindowOpacity(opacity, to: nsView.window)
+        }
+    }
+
+    private func applyWindowOpacity(_ opacity: Double, to window: NSWindow?) {
+        guard let window else { return }
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.alphaValue = CGFloat(opacity)
     }
 }

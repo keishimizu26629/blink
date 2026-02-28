@@ -11,6 +11,9 @@ struct CodeTextView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> CodeTextContainerView {
+        #if DEBUG
+            resetDebugLogIfNeeded()
+        #endif
         let containerView = CodeTextContainerView(gutterWidth: lineNumberWidth)
         let scrollView = containerView.scrollView
         let textView = containerView.textView
@@ -43,6 +46,7 @@ struct CodeTextView: NSViewRepresentable {
 
         #if DEBUG
             logLayout(phase: "make", textView: textView, scrollView: scrollView)
+            logTextRenderingState(phase: "make", textView: textView)
         #endif
 
         return containerView
@@ -52,29 +56,39 @@ struct CodeTextView: NSViewRepresentable {
         let scrollView = containerView.scrollView
         let textView = containerView.textView
 
+        #if DEBUG
+            debugLogToFileAndConsole(
+                "[CodeTextView:update:start] bindingTextLength=\(text.count) tokenCount=\(tokens.count)"
+            )
+            logLayout(phase: "update-start", textView: textView, scrollView: scrollView)
+            logTextRenderingState(phase: "update-start", textView: textView)
+        #endif
+
         if textView.string != text {
             textView.string = text
         }
         applySyntaxHighlight(to: textView)
 
+        containerView.layoutSubtreeIfNeeded()
         let contentSize = scrollView.contentView.bounds.size
         let hasValidViewport = contentSize.width > 1 && contentSize.height > 1
         guard hasValidViewport else {
             DispatchQueue.main.async { [weak containerView, weak scrollView, weak textView] in
                 guard let containerView, let scrollView, let textView else { return }
+                containerView.layoutSubtreeIfNeeded()
                 let retrySize = scrollView.contentView.bounds.size
                 guard retrySize.width > 1, retrySize.height > 1 else { return }
 
                 if let textContainer = textView.textContainer {
                     textContainer.containerSize = NSSize(
                         width: resolvedContainerWidth(
-                            textView: textView
+                            textView: textView,
+                            scrollView: scrollView
                         ),
                         height: CGFloat.greatestFiniteMagnitude
                     )
                     textView.layoutManager?.ensureLayout(for: textContainer)
                 }
-                containerView.layoutSubtreeIfNeeded()
                 textView.needsDisplay = true
                 containerView.lineNumberView.needsDisplay = true
 
@@ -94,7 +108,8 @@ struct CodeTextView: NSViewRepresentable {
         if let textContainer = textView.textContainer {
             textContainer.containerSize = NSSize(
                 width: resolvedContainerWidth(
-                    textView: textView
+                    textView: textView,
+                    scrollView: scrollView
                 ),
                 height: CGFloat.greatestFiniteMagnitude
             )
@@ -157,11 +172,14 @@ struct CodeTextView: NSViewRepresentable {
     }
 
     private func resolvedContainerWidth(
-        textView: NSTextView
+        textView: NSTextView,
+        scrollView: NSScrollView
     ) -> CGFloat {
         let insetWidth = textView.textContainerInset.width * 2
         let textViewBoundsWidth = textView.bounds.width
-        return max(1, textViewBoundsWidth - insetWidth)
+        let contentBoundsWidth = scrollView.contentView.bounds.width
+        let baseWidth = max(textViewBoundsWidth, contentBoundsWidth)
+        return max(1, baseWidth - insetWidth)
     }
 }
 
@@ -222,6 +240,14 @@ final class CodeTextContainerView: NSView {
             height: bounds.height
         )
         lineNumberView.needsDisplay = true
+
+        #if DEBUG
+            debugLogToFileAndConsole(
+                "[CodeTextContainer:layout] bounds=\(bounds) gutterFrame=\(lineNumberView.frame) " +
+                    "scrollFrame=\(scrollView.frame) contentBounds=\(scrollView.contentView.bounds) " +
+                    "textBounds=\(textView.bounds) container=\(textView.textContainer?.containerSize ?? .zero)"
+            )
+        #endif
     }
 }
 
@@ -229,7 +255,10 @@ final class LineNumberRulerView: NSRulerView {
     private weak var textView: NSTextView?
     private weak var observedClipView: NSClipView?
     private let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-    private let foregroundColor = NSColor.secondaryLabelColor
+    private let foregroundColor = SyntaxTheme.lineNumberColor
+    #if DEBUG
+        private var debugDrawCount: Int = 0
+    #endif
 
     init(scrollView: NSScrollView, textView: NSTextView) {
         self.textView = textView
@@ -294,6 +323,17 @@ final class LineNumberRulerView: NSRulerView {
             actualGlyphRange: nil
         )
 
+        #if DEBUG
+            debugDrawCount += 1
+            if debugDrawCount <= 5 || debugDrawCount % 20 == 0 {
+                debugLogToFileAndConsole(
+                    "[LineNumberRuler:draw] count=\(debugDrawCount) rect=\(rect) " +
+                        "clipBounds=\(clipBounds) visibleGlyph=\(visibleGlyphRange) " +
+                        "visibleChar=\(visibleCharRange)"
+                )
+            }
+        #endif
+
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: foregroundColor
@@ -338,6 +378,16 @@ final class LineNumberRulerView: NSRulerView {
 }
 
 #if DEBUG
+    private var didResetDebugLog = false
+
+    private func resetDebugLogIfNeeded() {
+        guard !didResetDebugLog else { return }
+        didResetDebugLog = true
+        let url = URL(fileURLWithPath: "/tmp/blink_code_text.log")
+        try? FileManager.default.removeItem(at: url)
+        debugLogToFileAndConsole("[CodeTextView] reset log file at \(url.path)")
+    }
+
     private func logLayout(phase: String, textView: NSTextView, scrollView: NSScrollView) {
         let rulerFrame = scrollView.verticalRulerView?.frame ?? .zero
         let contentViewFrame = scrollView.contentView.frame
@@ -358,7 +408,7 @@ final class LineNumberRulerView: NSRulerView {
     private func debugLogToFileAndConsole(_ message: String) {
         NSLog("%@", message)
         let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
-        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("blink_code_text.log")
+        let url = URL(fileURLWithPath: "/tmp/blink_code_text.log")
 
         if let data = line.data(using: .utf8) {
             if FileManager.default.fileExists(atPath: url.path),
