@@ -1,5 +1,7 @@
 # AI planning docs (local only)
 .ai/
+.ai
+AGENTS.md
 
 # direnv (account credentials)
 .envrc
@@ -17,6 +19,7 @@ mac-ui/Generated/
 *.xcuserdata/
 **/xcuserdata/
 *.xcuserstate
+mac-ui/Blink/Assets.xcassets/AppIcon.appiconset/backup_*/
 
 # IDE
 .idea/
