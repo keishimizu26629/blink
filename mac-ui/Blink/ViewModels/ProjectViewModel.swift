@@ -176,7 +176,7 @@ final class ProjectViewModel: ObservableObject {
             Result { try blameCommitDiff(path: filePath, commit: line.commit) }
         }.value
 
-        guard selectedFile?.path == filePath else {
+        guard selectedFile.path == filePath else {
             isDiffLoading = false
             return
         }
