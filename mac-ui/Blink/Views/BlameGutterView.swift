@@ -3,6 +3,7 @@ import SwiftUI
 /// Blame 情報を行ごとに表示するガタービュー
 struct BlameGutterView: View {
     let blameLines: [BlameLine]
+    let onSelectLine: (BlameLine) -> Void
     let lineHeight: CGFloat = 18
 
     var body: some View {
@@ -25,6 +26,10 @@ struct BlameGutterView: View {
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(height: lineHeight)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onSelectLine(blame)
+                }
             }
         }
         .padding(.horizontal, 4)

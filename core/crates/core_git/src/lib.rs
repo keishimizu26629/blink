@@ -1,6 +1,16 @@
-use std::process::Command;
+use std::{
+    collections::HashMap,
+    process::Command,
+    sync::{Mutex, OnceLock},
+};
 
-use core_types::BlameLine;
+use core_types::{BlameDiff, BlameLine};
+
+static DIFF_CACHE: OnceLock<Mutex<HashMap<String, BlameDiff>>> = OnceLock::new();
+
+fn diff_cache() -> &'static Mutex<HashMap<String, BlameDiff>> {
+    DIFF_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 /// git blame --line-porcelain の出力をパースして BlameLine のリストを返す
 pub fn blame_file(file_path: &str) -> Result<Vec<BlameLine>, String> {
@@ -16,6 +26,53 @@ pub fn blame_file(file_path: &str) -> Result<Vec<BlameLine>, String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     parse_porcelain(&stdout)
+}
+
+/// 指定コミットの対象ファイル差分を unified diff 文字列で返す
+pub fn blame_commit_diff(file_path: &str, commit: &str) -> Result<BlameDiff, String> {
+    if file_path.trim().is_empty() {
+        return Err("file_path が空です".to_string());
+    }
+    if commit.trim().is_empty() {
+        return Err("commit が空です".to_string());
+    }
+
+    let cache_key = format!("{commit}::{file_path}");
+    if let Some(cached) = diff_cache()
+        .lock()
+        .map_err(|e| format!("diff cache lock 失敗: {e}"))?
+        .get(&cache_key)
+        .cloned()
+    {
+        return Ok(cached);
+    }
+
+    let output = Command::new("git")
+        .args(["show", "--no-color", "--format=", commit, "--", file_path])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git show 失敗: {stderr}"));
+    }
+
+    let diff_text = String::from_utf8_lossy(&output.stdout).to_string();
+    if diff_text.trim().is_empty() {
+        return Err("差分が見つかりませんでした".to_string());
+    }
+
+    let diff = BlameDiff {
+        commit: commit.to_string(),
+        path: file_path.to_string(),
+        diff_text,
+    };
+
+    diff_cache()
+        .lock()
+        .map_err(|e| format!("diff cache lock 失敗: {e}"))?
+        .insert(cache_key, diff.clone());
+    Ok(diff)
 }
 
 /// line-porcelain 形式の出力をパースする
@@ -204,5 +261,19 @@ filename lib.rs
     fn blame_file_nonexistent() {
         let result = blame_file("/nonexistent/path/file.rs");
         assert!(result.is_err());
+    }
+
+    /// 無効コミットに対する差分取得はエラーを返す
+    #[test]
+    fn blame_commit_diff_invalid_commit_returns_err() {
+        let result = blame_commit_diff(file!(), "this-is-not-a-commit");
+        assert!(result.is_err());
+    }
+
+    /// 空入力はバリデーションエラーにする
+    #[test]
+    fn blame_commit_diff_empty_args_return_err() {
+        assert!(blame_commit_diff("", "abc1234").is_err());
+        assert!(blame_commit_diff(file!(), "").is_err());
     }
 }
