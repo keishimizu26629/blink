@@ -6,9 +6,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_DIR="$PROJECT_ROOT/app"
 
-echo "=== Blink: flutter_rust_bridge コード生成 ==="
+if ! command -v fvm >/dev/null 2>&1; then
+  echo "エラー: fvm が見つかりません。先に fvm をインストールしてください。"
+  exit 1
+fi
 
-flutter_rust_bridge_codegen generate \
-  --rust-input "$PROJECT_ROOT/core/crates/core_api/src/lib.rs" \
-  --dart-output "$PROJECT_ROOT/app/lib/src/bridge/generated/"
+echo "=== Blink: flutter_rust_bridge コード生成 (fvm) ==="
+cd "$APP_DIR"
+
+fvm flutter pub get
+
+if ! command -v flutter_rust_bridge_codegen >/dev/null 2>&1; then
+  echo "エラー: flutter_rust_bridge_codegen が見つかりません。"
+  echo "実行例: cargo install flutter_rust_bridge_codegen"
+  exit 1
+fi
+
+flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
