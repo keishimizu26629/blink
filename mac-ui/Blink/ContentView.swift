@@ -268,11 +268,11 @@ private struct BranchStatusBadge: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black.opacity(0.62))
+                .fill(Color.black.opacity(0.30))
         )
         .overlay {
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         }
     }
 
