@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var viewModel = ProjectViewModel()
     @State private var isFolderImporterPresented = false
+    @State private var isAppearancePopoverPresented = false
 
     var body: some View {
         NavigationSplitView {
@@ -113,23 +114,28 @@ struct ContentView: View {
                 }
             }
             ToolbarItem(placement: .automatic) {
-                HStack(spacing: 8) {
-                    Image(systemName: "circle.lefthalf.filled")
-                        .foregroundStyle(.secondary)
-                    Slider(
-                        value: Binding(
+                Button {
+                    isAppearancePopoverPresented.toggle()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .help("表示設定")
+                .popover(isPresented: $isAppearancePopoverPresented, arrowEdge: .top) {
+                    AppearanceSettingsPopover(
+                        windowOpacity: Binding(
                             get: { viewModel.windowOpacity },
                             set: { viewModel.updateWindowOpacity($0) }
                         ),
-                        in: 0.6 ... 1.0
+                        isBringToFrontHotkeyEnabled: Binding(
+                            get: { viewModel.isBringToFrontHotkeyEnabled },
+                            set: { viewModel.updateBringToFrontHotkeyEnabled($0) }
+                        ),
+                        bringToFrontShortcut: Binding(
+                            get: { viewModel.bringToFrontShortcut },
+                            set: { viewModel.updateBringToFrontShortcut($0) }
+                        )
                     )
-                    .frame(width: 140)
-                    Text("\(Int(viewModel.windowOpacity * 100))%")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 42, alignment: .trailing)
                 }
-                .help("ウィンドウ不透明度")
             }
         }
         .background(
@@ -284,6 +290,49 @@ private struct BranchStatusBadge: View {
     }
 }
 
+private struct AppearanceSettingsPopover: View {
+    @Binding var windowOpacity: Double
+    @Binding var isBringToFrontHotkeyEnabled: Bool
+    @Binding var bringToFrontShortcut: BringToFrontShortcut
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("表示設定")
+                .font(.headline)
+
+            Toggle("最前面ショートカット有効", isOn: $isBringToFrontHotkeyEnabled)
+
+            HStack(spacing: 8) {
+                Text("ショートカット")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Picker("ショートカット", selection: $bringToFrontShortcut) {
+                    ForEach(BringToFrontShortcut.allCases, id: \.self) { shortcut in
+                        Text(shortcut.displayName).tag(shortcut)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .disabled(!isBringToFrontHotkeyEnabled)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Opacity")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Slider(value: $windowOpacity, in: 0.6 ... 1.0)
+                    Text("\(Int(windowOpacity * 100))%")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 46, alignment: .trailing)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 260)
+    }
+}
+
 private struct SourceControlView: View {
     let status: GitStatus?
     let isLoading: Bool
@@ -429,6 +478,7 @@ private struct WindowOpacityConfigurator: NSViewRepresentable {
         window.alphaValue = CGFloat(opacity)
         window.titleVisibility = .hidden
         window.title = title ?? ""
+        window.level = .normal
     }
 }
 
