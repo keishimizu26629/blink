@@ -256,19 +256,36 @@ private struct BlameDiffPanelView: View {
 
 private struct PRDiffTableView: View {
     private enum RowKind {
-        case added
-        case removed
-        case context
-        case hunk
         case meta
+        case hunk
+        case unchanged
+        case removed
+        case added
+        case modified
+    }
+
+    private enum RawKind {
+        case meta
+        case hunk
+        case context
+        case removed
+        case added
+    }
+
+    private struct RawLine {
+        let kind: RawKind
+        let oldLine: Int?
+        let newLine: Int?
+        let text: String
     }
 
     private struct Row: Identifiable {
         let id: Int
+        let kind: RowKind
         let oldLine: Int?
         let newLine: Int?
-        let kind: RowKind
-        let text: String
+        let oldText: String
+        let newText: String
     }
 
     private static let hunkRegex = try? NSRegularExpression(
@@ -277,7 +294,7 @@ private struct PRDiffTableView: View {
 
     private let rows: [Row]
     private let lineColumnWidth: CGFloat = 56
-    private let markerColumnWidth: CGFloat = 22
+    private let minContentWidth: CGFloat = 1100
 
     init(diffText: String) {
         rows = Self.parse(diffText: diffText)
@@ -289,133 +306,146 @@ private struct PRDiffTableView: View {
                 headerRow
                 Divider()
                 ForEach(rows) { row in
-                    HStack(spacing: 0) {
-                        lineCell(lineNumberText(row.oldLine))
-                        lineCell(lineNumberText(row.newLine))
-                        markerCell(markerText(for: row.kind))
-                        Text(codeText(for: row))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .lineLimit(1)
-                    }
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(foregroundColor(for: row.kind))
-                    .background(backgroundColor(for: row.kind))
+                    rowView(row)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: minContentWidth, alignment: .leading)
         }
         .textSelection(.enabled)
     }
 
     private var headerRow: some View {
         HStack(spacing: 0) {
-            lineCell("old")
-            lineCell("new")
-            markerCell("")
-            Text("code")
+            sideHeader("OLD")
+            Divider()
+            sideHeader("NEW")
+        }
+        .frame(minWidth: minContentWidth, alignment: .leading)
+        .font(.system(size: 11, design: .monospaced).weight(.semibold))
+        .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.92))
+        .background(Color.white.opacity(0.08))
+    }
+
+    private func sideHeader(_ title: String) -> some View {
+        HStack(spacing: 0) {
+            Text("#")
+                .frame(width: lineColumnWidth, alignment: .trailing)
+                .foregroundStyle(Color(nsColor: SyntaxTheme.lineNumberColor))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+
+            Text(title)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.vertical, 3)
         }
-        .font(.system(size: 11, design: .monospaced).weight(.semibold))
-        .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.9))
-        .background(Color.white.opacity(0.06))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func lineCell(_ text: String) -> some View {
-        Text(text)
-            .frame(width: lineColumnWidth, alignment: .trailing)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundStyle(Color(nsColor: SyntaxTheme.lineNumberColor))
-    }
-
-    private func markerCell(_ text: String) -> some View {
-        Text(text)
-            .frame(width: markerColumnWidth, alignment: .center)
-            .padding(.vertical, 2)
-    }
-
-    private func lineNumberText(_ value: Int?) -> String {
-        if let value {
-            return "\(value)"
-        }
-        return ""
-    }
-
-    private func markerText(for kind: RowKind) -> String {
-        switch kind {
-        case .added:
-            return "+"
-        case .removed:
-            return "-"
-        case .context:
-            return " "
-        case .hunk:
-            return "@"
-        case .meta:
-            return " "
-        }
-    }
-
-    private func codeText(for row: Row) -> String {
+    @ViewBuilder
+    private func rowView(_ row: Row) -> some View {
         switch row.kind {
-        case .added:
-            return "+ " + row.text
-        case .removed:
-            return "- " + row.text
-        case .context:
-            return "  " + row.text
-        case .hunk:
-            return row.text
-        case .meta:
-            return row.text
+        case .meta, .hunk:
+            Text(row.oldText)
+                .font(.system(size: 11, design: .monospaced))
+                .frame(minWidth: minContentWidth, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 2)
+                .foregroundStyle(metaForegroundColor(for: row.kind))
+                .background(metaBackgroundColor(for: row.kind))
+        default:
+            HStack(spacing: 0) {
+                sideRow(
+                    line: row.oldLine,
+                    text: row.oldText,
+                    background: sideBackground(kind: row.kind, side: .old)
+                )
+                Divider()
+                sideRow(
+                    line: row.newLine,
+                    text: row.newText,
+                    background: sideBackground(kind: row.kind, side: .new)
+                )
+            }
+            .frame(minWidth: minContentWidth, alignment: .leading)
+            .font(.system(size: 11, design: .monospaced))
+            .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.96))
         }
     }
 
-    private func foregroundColor(for kind: RowKind) -> Color {
+    private enum DiffSide {
+        case old
+        case new
+    }
+
+    private func sideRow(line: Int?, text: String, background: Color) -> some View {
+        HStack(spacing: 0) {
+            Text(line.map(String.init) ?? "")
+                .frame(width: lineColumnWidth, alignment: .trailing)
+                .foregroundStyle(Color(nsColor: SyntaxTheme.lineNumberColor))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+
+            Text(text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background)
+    }
+
+    private func metaForegroundColor(for kind: RowKind) -> Color {
         switch kind {
-        case .added:
-            return Color.white.opacity(0.95)
-        case .removed:
-            return Color.white.opacity(0.95)
-        case .context:
-            return Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.9)
         case .hunk:
             return Color.white.opacity(0.95)
-        case .meta:
-            return Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.75)
+        default:
+            return Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.8)
         }
     }
 
-    private func backgroundColor(for kind: RowKind) -> Color {
+    private func metaBackgroundColor(for kind: RowKind) -> Color {
         switch kind {
-        case .added:
-            return Color.green.opacity(0.20)
+        case .hunk:
+            return Color.blue.opacity(0.20)
+        default:
+            return Color.white.opacity(0.05)
+        }
+    }
+
+    private func sideBackground(kind: RowKind, side: DiffSide) -> Color {
+        switch kind {
         case .removed:
-            return Color.red.opacity(0.20)
-        case .context:
+            return side == .old ? Color.red.opacity(0.22) : Color.clear
+        case .added:
+            return side == .new ? Color.green.opacity(0.22) : Color.clear
+        case .modified:
+            return side == .old ? Color.red.opacity(0.18) : Color.green.opacity(0.18)
+        case .unchanged:
             return Color.clear
-        case .hunk:
-            return Color.blue.opacity(0.25)
-        case .meta:
-            return Color.white.opacity(0.04)
+        default:
+            return Color.clear
         }
     }
 
     private static func parse(diffText: String) -> [Row] {
         let lines = diffText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        var rows: [Row] = []
+        let rawLines = parseRaw(lines: lines)
+        return convertRawToRows(rawLines)
+    }
+
+    private static func parseRaw(lines: [String]) -> [RawLine] {
+        var raw: [RawLine] = []
         var oldLine: Int?
         var newLine: Int?
 
-        for (index, line) in lines.enumerated() {
+        for line in lines {
             if let (nextOld, nextNew) = parseHunkHeader(line) {
                 oldLine = nextOld
                 newLine = nextNew
-                rows.append(Row(id: index, oldLine: nil, newLine: nil, kind: .hunk, text: line))
+                raw.append(RawLine(kind: .hunk, oldLine: nil, newLine: nil, text: line))
                 continue
             }
 
@@ -424,28 +454,35 @@ private struct PRDiffTableView: View {
                 || line.hasPrefix("--- ")
                 || line.hasPrefix("+++ ")
             {
-                rows.append(Row(id: index, oldLine: nil, newLine: nil, kind: .meta, text: line))
-                continue
-            }
-
-            if line.hasPrefix("+"), !line.hasPrefix("+++") {
-                rows.append(Row(id: index, oldLine: nil, newLine: newLine, kind: .added, text: String(line.dropFirst())))
-                if let current = newLine {
-                    newLine = current + 1
-                }
+                raw.append(RawLine(kind: .meta, oldLine: nil, newLine: nil, text: line))
                 continue
             }
 
             if line.hasPrefix("-"), !line.hasPrefix("---") {
-                rows.append(Row(id: index, oldLine: oldLine, newLine: nil, kind: .removed, text: String(line.dropFirst())))
+                raw.append(RawLine(kind: .removed, oldLine: oldLine, newLine: nil, text: String(line.dropFirst())))
                 if let current = oldLine {
                     oldLine = current + 1
+                }
+                continue
+            }
+
+            if line.hasPrefix("+"), !line.hasPrefix("+++") {
+                raw.append(RawLine(kind: .added, oldLine: nil, newLine: newLine, text: String(line.dropFirst())))
+                if let current = newLine {
+                    newLine = current + 1
                 }
                 continue
             }
 
             if line.hasPrefix(" ") {
-                rows.append(Row(id: index, oldLine: oldLine, newLine: newLine, kind: .context, text: String(line.dropFirst())))
+                raw.append(
+                    RawLine(
+                        kind: .context,
+                        oldLine: oldLine,
+                        newLine: newLine,
+                        text: String(line.dropFirst())
+                    )
+                )
                 if let current = oldLine {
                     oldLine = current + 1
                 }
@@ -455,9 +492,108 @@ private struct PRDiffTableView: View {
                 continue
             }
 
-            rows.append(Row(id: index, oldLine: nil, newLine: nil, kind: .meta, text: line))
+            raw.append(RawLine(kind: .meta, oldLine: nil, newLine: nil, text: line))
         }
 
+        return raw
+    }
+
+    private static func convertRawToRows(_ rawLines: [RawLine]) -> [Row] {
+        var rows: [Row] = []
+        var pendingRemoved: [RawLine] = []
+        var pendingAdded: [RawLine] = []
+
+        func appendRow(
+            kind: RowKind,
+            oldLine: Int?,
+            newLine: Int?,
+            oldText: String,
+            newText: String
+        ) {
+            rows.append(
+                Row(
+                    id: rows.count,
+                    kind: kind,
+                    oldLine: oldLine,
+                    newLine: newLine,
+                    oldText: oldText,
+                    newText: newText
+                )
+            )
+        }
+
+        func flushPending() {
+            guard !pendingRemoved.isEmpty || !pendingAdded.isEmpty else { return }
+            let count = max(pendingRemoved.count, pendingAdded.count)
+            for index in 0 ..< count {
+                let removed = index < pendingRemoved.count ? pendingRemoved[index] : nil
+                let added = index < pendingAdded.count ? pendingAdded[index] : nil
+                if let removed, let added {
+                    appendRow(
+                        kind: .modified,
+                        oldLine: removed.oldLine,
+                        newLine: added.newLine,
+                        oldText: removed.text,
+                        newText: added.text
+                    )
+                } else if let removed {
+                    appendRow(
+                        kind: .removed,
+                        oldLine: removed.oldLine,
+                        newLine: nil,
+                        oldText: removed.text,
+                        newText: ""
+                    )
+                } else if let added {
+                    appendRow(
+                        kind: .added,
+                        oldLine: nil,
+                        newLine: added.newLine,
+                        oldText: "",
+                        newText: added.text
+                    )
+                }
+            }
+            pendingRemoved.removeAll(keepingCapacity: true)
+            pendingAdded.removeAll(keepingCapacity: true)
+        }
+
+        for raw in rawLines {
+            switch raw.kind {
+            case .removed:
+                pendingRemoved.append(raw)
+            case .added:
+                pendingAdded.append(raw)
+            case .context:
+                flushPending()
+                appendRow(
+                    kind: .unchanged,
+                    oldLine: raw.oldLine,
+                    newLine: raw.newLine,
+                    oldText: raw.text,
+                    newText: raw.text
+                )
+            case .meta:
+                flushPending()
+                appendRow(
+                    kind: .meta,
+                    oldLine: nil,
+                    newLine: nil,
+                    oldText: raw.text,
+                    newText: ""
+                )
+            case .hunk:
+                flushPending()
+                appendRow(
+                    kind: .hunk,
+                    oldLine: nil,
+                    newLine: nil,
+                    oldText: raw.text,
+                    newText: ""
+                )
+            }
+        }
+        flushPending()
         return rows
     }
 
