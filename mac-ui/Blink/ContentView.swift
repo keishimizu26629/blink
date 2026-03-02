@@ -400,33 +400,33 @@ private struct PRDiffTableView: View {
     private func metaForegroundColor(for kind: RowKind) -> Color {
         switch kind {
         case .hunk:
-            return Color.white.opacity(0.95)
+            Color.white.opacity(0.95)
         default:
-            return Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.8)
+            Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.8)
         }
     }
 
     private func metaBackgroundColor(for kind: RowKind) -> Color {
         switch kind {
         case .hunk:
-            return Color.blue.opacity(0.20)
+            Color.blue.opacity(0.20)
         default:
-            return Color.white.opacity(0.05)
+            Color.white.opacity(0.05)
         }
     }
 
     private func sideBackground(kind: RowKind, side: DiffSide) -> Color {
         switch kind {
         case .removed:
-            return side == .old ? Color.red.opacity(0.22) : Color.clear
+            side == .old ? Color.red.opacity(0.22) : Color.clear
         case .added:
-            return side == .new ? Color.green.opacity(0.22) : Color.clear
+            side == .new ? Color.green.opacity(0.22) : Color.clear
         case .modified:
-            return side == .old ? Color.red.opacity(0.18) : Color.green.opacity(0.18)
+            side == .old ? Color.red.opacity(0.18) : Color.green.opacity(0.18)
         case .unchanged:
-            return Color.clear
+            Color.clear
         default:
-            return Color.clear
+            Color.clear
         }
     }
 
