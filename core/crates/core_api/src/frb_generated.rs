@@ -25,7 +25,6 @@
 
 // Section: imports
 
-use crate::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -38,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 305755378;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1681799838;
 
 // Section: executor
 
@@ -46,7 +45,7 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__blame_commit_diff_impl(
+fn wire__crate__dart_api__blame_commit_diff_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -72,15 +71,15 @@ fn wire__crate__blame_commit_diff_impl(
             let api_commit = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::blame_commit_diff(api_path, api_commit)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::blame_commit_diff(api_path, api_commit)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__blame_range_impl(
+fn wire__crate__dart_api__blame_range_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -107,15 +106,16 @@ fn wire__crate__blame_range_impl(
             let api_end_line = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::blame_range(api_path, api_start_line, api_end_line)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::dart_api::blame_range(api_path, api_start_line, api_end_line)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__git_current_branch_impl(
+fn wire__crate__dart_api__git_current_branch_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -140,15 +140,15 @@ fn wire__crate__git_current_branch_impl(
             let api_root_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::git_current_branch(api_root_path)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::git_current_branch(api_root_path)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__git_file_diff_impl(
+fn wire__crate__dart_api__git_file_diff_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -173,15 +173,15 @@ fn wire__crate__git_file_diff_impl(
             let api_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::git_file_diff(api_path)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::git_file_diff(api_path)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__git_status_impl(
+fn wire__crate__dart_api__git_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -206,15 +206,15 @@ fn wire__crate__git_status_impl(
             let api_root_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::git_status(api_root_path)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::git_status(api_root_path)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__highlight_range_impl(
+fn wire__crate__dart_api__highlight_range_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -241,15 +241,16 @@ fn wire__crate__highlight_range_impl(
             let api_end_line = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::highlight_range(api_path, api_start_line, api_end_line)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::dart_api::highlight_range(api_path, api_start_line, api_end_line)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__list_dir_impl(
+fn wire__crate__dart_api__list_dir_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -275,15 +276,15 @@ fn wire__crate__list_dir_impl(
             let api_dir_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::list_dir(api_root_path, api_dir_path)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::list_dir(api_root_path, api_dir_path)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__open_project_impl(
+fn wire__crate__dart_api__open_project_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -308,15 +309,15 @@ fn wire__crate__open_project_impl(
             let api_root_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::open_project(api_root_path)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::open_project(api_root_path)?;
                     Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__read_file_impl(
+fn wire__crate__dart_api__read_file_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -341,8 +342,8 @@ fn wire__crate__read_file_impl(
             let api_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::CoreError>((move || {
-                    let output_ok = crate::read_file(api_path)?;
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::dart_api::read_file(api_path)?;
                     Ok(output_ok)
                 })())
             }
@@ -350,125 +351,7 @@ fn wire__crate__read_file_impl(
     )
 }
 
-// Section: related_funcs
-
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>
-);
-
 // Section: dart2rust
-
-impl SseDecode for BlameLine {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for FileNode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for GitFileDiff {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for GitStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for TokenSpan {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
 
 impl SseDecode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -478,53 +361,156 @@ impl SseDecode for String {
     }
 }
 
-impl SseDecode for crate::CoreError {
+impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::CoreError::Message { reason: var_reason };
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
+        deserializer.cursor.read_u8().unwrap() != 0
     }
 }
 
-impl SseDecode for Vec<BlameLine> {
+impl SseDecode for crate::dart_api::DartBlameLine {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_line = <u32>::sse_decode(deserializer);
+        let mut var_author = <String>::sse_decode(deserializer);
+        let mut var_authorTime = <i64>::sse_decode(deserializer);
+        let mut var_summary = <String>::sse_decode(deserializer);
+        let mut var_commit = <String>::sse_decode(deserializer);
+        return crate::dart_api::DartBlameLine {
+            line: var_line,
+            author: var_author,
+            author_time: var_authorTime,
+            summary: var_summary,
+            commit: var_commit,
+        };
+    }
+}
+
+impl SseDecode for crate::dart_api::DartFileNode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_isDir = <bool>::sse_decode(deserializer);
+        return crate::dart_api::DartFileNode {
+            id: var_id,
+            path: var_path,
+            name: var_name,
+            is_dir: var_isDir,
+        };
+    }
+}
+
+impl SseDecode for crate::dart_api::DartGitFileDiff {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_commit = <String>::sse_decode(deserializer);
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_diffText = <String>::sse_decode(deserializer);
+        return crate::dart_api::DartGitFileDiff {
+            commit: var_commit,
+            path: var_path,
+            diff_text: var_diffText,
+        };
+    }
+}
+
+impl SseDecode for crate::dart_api::DartGitStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_staged = <Vec<crate::dart_api::DartGitStatusEntry>>::sse_decode(deserializer);
+        let mut var_unstaged = <Vec<crate::dart_api::DartGitStatusEntry>>::sse_decode(deserializer);
+        let mut var_untracked =
+            <Vec<crate::dart_api::DartGitStatusEntry>>::sse_decode(deserializer);
+        return crate::dart_api::DartGitStatus {
+            staged: var_staged,
+            unstaged: var_unstaged,
+            untracked: var_untracked,
+        };
+    }
+}
+
+impl SseDecode for crate::dart_api::DartGitStatusEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        return crate::dart_api::DartGitStatusEntry {
+            path: var_path,
+            status: var_status,
+        };
+    }
+}
+
+impl SseDecode for crate::dart_api::DartTokenSpan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_line = <u32>::sse_decode(deserializer);
+        let mut var_startCol = <u32>::sse_decode(deserializer);
+        let mut var_endCol = <u32>::sse_decode(deserializer);
+        let mut var_tokenType = <String>::sse_decode(deserializer);
+        return crate::dart_api::DartTokenSpan {
+            line: var_line,
+            start_col: var_startCol,
+            end_col: var_endCol,
+            token_type: var_tokenType,
+        };
+    }
+}
+
+impl SseDecode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for Vec<crate::dart_api::DartBlameLine> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<BlameLine>::sse_decode(deserializer));
+            ans_.push(<crate::dart_api::DartBlameLine>::sse_decode(deserializer));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<FileNode> {
+impl SseDecode for Vec<crate::dart_api::DartFileNode> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<FileNode>::sse_decode(deserializer));
+            ans_.push(<crate::dart_api::DartFileNode>::sse_decode(deserializer));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<TokenSpan> {
+impl SseDecode for Vec<crate::dart_api::DartGitStatusEntry> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<TokenSpan>::sse_decode(deserializer));
+            ans_.push(<crate::dart_api::DartGitStatusEntry>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::dart_api::DartTokenSpan> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::dart_api::DartTokenSpan>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -556,24 +542,10 @@ impl SseDecode for u8 {
     }
 }
 
-impl SseDecode for usize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
-    }
-}
-
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i32::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
     }
 }
 
@@ -586,15 +558,15 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__blame_commit_diff_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__blame_range_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__git_current_branch_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__git_file_diff_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__git_status_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__highlight_range_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__list_dir_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__open_project_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__read_file_impl(port, ptr, rust_vec_len, data_len),
+        1 => wire__crate__dart_api__blame_commit_diff_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__dart_api__blame_range_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__dart_api__git_current_branch_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__dart_api__git_file_diff_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__dart_api__git_status_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__dart_api__highlight_range_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__dart_api__list_dir_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__dart_api__open_project_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__dart_api__read_file_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -614,187 +586,135 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<BlameLine> {
+impl flutter_rust_bridge::IntoDart for crate::dart_api::DartBlameLine {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
+        [
+            self.line.into_into_dart().into_dart(),
+            self.author.into_into_dart().into_dart(),
+            self.author_time.into_into_dart().into_dart(),
+            self.summary.into_into_dart().into_dart(),
+            self.commit.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<BlameLine> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<BlameLine>> for BlameLine {
-    fn into_into_dart(self) -> FrbWrapper<BlameLine> {
-        self.into()
-    }
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::dart_api::DartBlameLine
+{
 }
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<FileNode> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<FileNode> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<FileNode>> for FileNode {
-    fn into_into_dart(self) -> FrbWrapper<FileNode> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<GitFileDiff> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<GitFileDiff> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<GitFileDiff>> for GitFileDiff {
-    fn into_into_dart(self) -> FrbWrapper<GitFileDiff> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<GitStatus> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<GitStatus> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<GitStatus>> for GitStatus {
-    fn into_into_dart(self) -> FrbWrapper<GitStatus> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<TokenSpan> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<TokenSpan> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<TokenSpan>> for TokenSpan {
-    fn into_into_dart(self) -> FrbWrapper<TokenSpan> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::CoreError {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            crate::CoreError::Message { reason } => {
-                [0.into_dart(), reason.into_into_dart().into_dart()].into_dart()
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::CoreError {}
-impl flutter_rust_bridge::IntoIntoDart<crate::CoreError> for crate::CoreError {
-    fn into_into_dart(self) -> crate::CoreError {
+impl flutter_rust_bridge::IntoIntoDart<crate::dart_api::DartBlameLine>
+    for crate::dart_api::DartBlameLine
+{
+    fn into_into_dart(self) -> crate::dart_api::DartBlameLine {
         self
     }
 }
-
-impl SseEncode for BlameLine {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::dart_api::DartFileNode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.path.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.is_dir.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
-
-impl SseEncode for FileNode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for GitFileDiff {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for GitStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for TokenSpan {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::dart_api::DartFileNode {}
+impl flutter_rust_bridge::IntoIntoDart<crate::dart_api::DartFileNode>
+    for crate::dart_api::DartFileNode
 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
+    fn into_into_dart(self) -> crate::dart_api::DartFileNode {
+        self
     }
 }
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::dart_api::DartGitFileDiff {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.commit.into_into_dart().into_dart(),
+            self.path.into_into_dart().into_dart(),
+            self.diff_text.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::dart_api::DartGitFileDiff
 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::dart_api::DartGitFileDiff>
+    for crate::dart_api::DartGitFileDiff
+{
+    fn into_into_dart(self) -> crate::dart_api::DartGitFileDiff {
+        self
     }
 }
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::dart_api::DartGitStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.staged.into_into_dart().into_dart(),
+            self.unstaged.into_into_dart().into_dart(),
+            self.untracked.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::dart_api::DartGitStatus
 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::dart_api::DartGitStatus>
+    for crate::dart_api::DartGitStatus
+{
+    fn into_into_dart(self) -> crate::dart_api::DartGitStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::dart_api::DartGitStatusEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.path.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::dart_api::DartGitStatusEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::dart_api::DartGitStatusEntry>
+    for crate::dart_api::DartGitStatusEntry
+{
+    fn into_into_dart(self) -> crate::dart_api::DartGitStatusEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::dart_api::DartTokenSpan {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.line.into_into_dart().into_dart(),
+            self.start_col.into_into_dart().into_dart(),
+            self.end_col.into_into_dart().into_dart(),
+            self.token_type.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::dart_api::DartTokenSpan
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::dart_api::DartTokenSpan>
+    for crate::dart_api::DartTokenSpan
+{
+    fn into_into_dart(self) -> crate::dart_api::DartTokenSpan {
+        self
     }
 }
 
@@ -805,47 +725,113 @@ impl SseEncode for String {
     }
 }
 
-impl SseEncode for crate::CoreError {
+impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::CoreError::Message { reason } => {
-                <i32>::sse_encode(0, serializer);
-                <String>::sse_encode(reason, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
+        serializer.cursor.write_u8(self as _).unwrap();
     }
 }
 
-impl SseEncode for Vec<BlameLine> {
+impl SseEncode for crate::dart_api::DartBlameLine {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.line, serializer);
+        <String>::sse_encode(self.author, serializer);
+        <i64>::sse_encode(self.author_time, serializer);
+        <String>::sse_encode(self.summary, serializer);
+        <String>::sse_encode(self.commit, serializer);
+    }
+}
+
+impl SseEncode for crate::dart_api::DartFileNode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.path, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <bool>::sse_encode(self.is_dir, serializer);
+    }
+}
+
+impl SseEncode for crate::dart_api::DartGitFileDiff {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.commit, serializer);
+        <String>::sse_encode(self.path, serializer);
+        <String>::sse_encode(self.diff_text, serializer);
+    }
+}
+
+impl SseEncode for crate::dart_api::DartGitStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::dart_api::DartGitStatusEntry>>::sse_encode(self.staged, serializer);
+        <Vec<crate::dart_api::DartGitStatusEntry>>::sse_encode(self.unstaged, serializer);
+        <Vec<crate::dart_api::DartGitStatusEntry>>::sse_encode(self.untracked, serializer);
+    }
+}
+
+impl SseEncode for crate::dart_api::DartGitStatusEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.path, serializer);
+        <String>::sse_encode(self.status, serializer);
+    }
+}
+
+impl SseEncode for crate::dart_api::DartTokenSpan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.line, serializer);
+        <u32>::sse_encode(self.start_col, serializer);
+        <u32>::sse_encode(self.end_col, serializer);
+        <String>::sse_encode(self.token_type, serializer);
+    }
+}
+
+impl SseEncode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for Vec<crate::dart_api::DartBlameLine> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <BlameLine>::sse_encode(item, serializer);
+            <crate::dart_api::DartBlameLine>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<FileNode> {
+impl SseEncode for Vec<crate::dart_api::DartFileNode> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <FileNode>::sse_encode(item, serializer);
+            <crate::dart_api::DartFileNode>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<TokenSpan> {
+impl SseEncode for Vec<crate::dart_api::DartGitStatusEntry> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <TokenSpan>::sse_encode(item, serializer);
+            <crate::dart_api::DartGitStatusEntry>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::dart_api::DartTokenSpan> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::dart_api::DartTokenSpan>::sse_encode(item, serializer);
         }
     }
 }
@@ -874,27 +860,10 @@ impl SseEncode for u8 {
     }
 }
 
-impl SseEncode for usize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer
-            .cursor
-            .write_u64::<NativeEndian>(self as _)
-            .unwrap();
-    }
-}
-
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self as _).unwrap();
     }
 }
 
@@ -906,7 +875,6 @@ mod io {
     // Section: imports
 
     use super::*;
-    use crate::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -916,76 +884,6 @@ mod io {
     // Section: boilerplate
 
     flutter_rust_bridge::frb_generated_boilerplate_io!();
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>::decrement_strong_count(ptr as _);
-    }
 }
 #[cfg(not(target_family = "wasm"))]
 pub use io::*;
@@ -999,7 +897,6 @@ mod web {
     // Section: imports
 
     use super::*;
-    use crate::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -1011,76 +908,6 @@ mod web {
     // Section: boilerplate
 
     flutter_rust_bridge::frb_generated_boilerplate_web!();
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlameLine>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FileNode>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitFileDiff>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GitStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TokenSpan>>::decrement_strong_count(ptr as _);
-    }
 }
 #[cfg(target_family = "wasm")]
 pub use web::*;
