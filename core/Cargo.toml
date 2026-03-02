@@ -6,5 +6,4 @@ members = [
     "crates/core_api",
     "crates/core_git",
     "crates/core_highlight",
-    "crates/uniffi-bindgen",
 ]

@@ -1,0 +1,3 @@
+rust_root: ../core/crates/core_api
+rust_input: crate
+dart_output: lib/src/bridge/generated

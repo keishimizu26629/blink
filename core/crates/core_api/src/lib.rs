@@ -1,11 +1,9 @@
+mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 use std::path::Path;
 
 use core_types::{BlameLine, FileNode, GitFileDiff, GitStatus, TokenSpan};
 
-uniffi::setup_scaffolding!();
-
-#[derive(Debug, thiserror::Error, uniffi::Error)]
-#[uniffi(flat_error)]
+#[derive(Debug, thiserror::Error)]
 pub enum CoreError {
     #[error("{reason}")]
     Message { reason: String },
@@ -18,7 +16,6 @@ fn core_error(reason: impl Into<String>) -> CoreError {
 }
 
 /// プロジェクトを開く（MVPではルートパスをそのまま返す）
-#[uniffi::export]
 pub fn open_project(root_path: String) -> Result<String, CoreError> {
     let path = Path::new(&root_path);
     if !path.exists() {
@@ -33,13 +30,11 @@ pub fn open_project(root_path: String) -> Result<String, CoreError> {
 }
 
 /// ディレクトリ内のファイル一覧を返す
-#[uniffi::export]
 pub fn list_dir(root_path: String, dir_path: String) -> Result<Vec<FileNode>, CoreError> {
     core_fs::list_dir(&root_path, &dir_path).map_err(core_error)
 }
 
 /// ファイルの内容を文字列として読み込む
-#[uniffi::export]
 pub fn read_file(path: String) -> Result<String, CoreError> {
     let p = Path::new(&path);
     if !p.exists() {
@@ -52,7 +47,6 @@ pub fn read_file(path: String) -> Result<String, CoreError> {
 }
 
 /// シンタックスハイライト: ファイルを読み込み、指定範囲のトークンを返す
-#[uniffi::export]
 pub fn highlight_range(
     path: String,
     start_line: u32,
@@ -74,7 +68,6 @@ pub fn highlight_range(
 
 /// Git Blame: 指定範囲の行に対する blame 情報を返す
 /// 取得不能時は理由付きエラーを返す
-#[uniffi::export]
 pub fn blame_range(
     path: String,
     start_line: u32,
@@ -105,25 +98,21 @@ pub fn blame_range(
 }
 
 /// Blame 行で選択したコミットの差分を返す
-#[uniffi::export]
 pub fn blame_commit_diff(path: String, commit: String) -> Result<GitFileDiff, CoreError> {
     core_git::blame_commit_diff(&path, &commit).map_err(core_error)
 }
 
 /// 対象ファイルの現在差分（staged/unstaged/untracked）を返す
-#[uniffi::export]
 pub fn git_file_diff(path: String) -> Result<GitFileDiff, CoreError> {
     core_git::git_file_diff(&path).map_err(core_error)
 }
 
 /// リポジトリの変更状態（staged / unstaged / untracked）を返す
-#[uniffi::export]
 pub fn git_status(root_path: String) -> Result<GitStatus, CoreError> {
     core_git::git_status(&root_path).map_err(core_error)
 }
 
 /// 現在のブランチ名を返す
-#[uniffi::export]
 pub fn git_current_branch(root_path: String) -> Result<String, CoreError> {
     core_git::git_current_branch(&root_path).map_err(core_error)
 }
