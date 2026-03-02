@@ -2,7 +2,7 @@ uniffi::setup_scaffolding!();
 
 /// ファイルノード（ツリー表示用）
 /// children はSwift側で管理するため、FFI境界では含めない
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
 pub struct FileNode {
     pub id: String,
     pub path: String,
@@ -11,14 +11,14 @@ pub struct FileNode {
 }
 
 /// ノード種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum, serde::Serialize)]
 pub enum NodeKind {
     File,
     Dir,
 }
 
 /// シンタックスハイライト用トークン
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
 pub struct TokenSpan {
     pub line: u32,
     pub start_col: u32,
@@ -27,7 +27,7 @@ pub struct TokenSpan {
 }
 
 /// トークン種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum, serde::Serialize)]
 pub enum TokenType {
     Keyword,
     String,
@@ -42,7 +42,7 @@ pub enum TokenType {
 }
 
 /// Git Blame 行情報
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
 pub struct BlameLine {
     pub line: u32,
     pub author: String,
@@ -52,7 +52,7 @@ pub struct BlameLine {
 }
 
 /// Git差分（コミット差分または作業ツリー差分）
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
 pub struct GitFileDiff {
     pub commit: String,
     pub path: String,
@@ -60,14 +60,14 @@ pub struct GitFileDiff {
 }
 
 /// Git status の1エントリ
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
 pub struct GitStatusEntry {
     pub path: String,
     pub status: String,
 }
 
 /// Git status 分類結果
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
 pub struct GitStatus {
     pub staged: Vec<GitStatusEntry>,
     pub unstaged: Vec<GitStatusEntry>,
@@ -156,5 +156,93 @@ mod tests {
         assert_eq!(status.unstaged.len(), 1);
         assert_eq!(status.untracked.len(), 1);
         assert_eq!(status.untracked[0].status, "??");
+    }
+
+    #[test]
+    fn file_node_empty_fields() {
+        let node = FileNode {
+            id: "".into(),
+            path: "".into(),
+            name: "".into(),
+            kind: NodeKind::File,
+        };
+        assert_eq!(node.id, "");
+        assert_eq!(node.path, "");
+        assert_eq!(node.name, "");
+    }
+
+    #[test]
+    fn file_node_special_characters() {
+        let node = FileNode {
+            id: "sp1".into(),
+            path: "/home/user/テスト.txt".into(),
+            name: "テスト.txt".into(),
+            kind: NodeKind::File,
+        };
+        assert_eq!(node.path, "/home/user/テスト.txt");
+        assert_eq!(node.name, "テスト.txt");
+
+        let spaced = FileNode {
+            id: "sp2".into(),
+            path: "/my docs/hello world.rs".into(),
+            name: "hello world.rs".into(),
+            kind: NodeKind::Dir,
+        };
+        assert_eq!(spaced.path, "/my docs/hello world.rs");
+        assert_eq!(spaced.name, "hello world.rs");
+    }
+
+    #[test]
+    fn token_span_all_token_types_roundtrip() {
+        let variants = [
+            TokenType::Keyword,
+            TokenType::String,
+            TokenType::Comment,
+            TokenType::Type,
+            TokenType::Function,
+            TokenType::Number,
+            TokenType::Operator,
+            TokenType::Punctuation,
+            TokenType::Variable,
+            TokenType::Plain,
+        ];
+        for (i, tt) in variants.iter().enumerate() {
+            let span = TokenSpan {
+                line: i as u32,
+                start_col: 0,
+                end_col: 10,
+                token_type: *tt,
+            };
+            assert_eq!(span.token_type, *tt);
+            assert_eq!(span.line, i as u32);
+        }
+    }
+
+    #[test]
+    fn blame_line_empty_summary() {
+        let blame = BlameLine {
+            line: 0,
+            author: "".into(),
+            author_time: 0,
+            summary: "".into(),
+            commit: "".into(),
+        };
+        assert_eq!(blame.line, 0);
+        assert_eq!(blame.author, "");
+        assert_eq!(blame.author_time, 0);
+        assert_eq!(blame.summary, "");
+        assert_eq!(blame.commit, "");
+    }
+
+    #[test]
+    fn git_status_all_empty() {
+        let status = GitStatus {
+            staged: vec![],
+            unstaged: vec![],
+            untracked: vec![],
+        };
+        assert!(status.staged.is_empty());
+        assert!(status.unstaged.is_empty());
+        assert!(status.untracked.is_empty());
     }
 }

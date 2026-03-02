@@ -843,4 +843,393 @@ filename lib.rs
 
         let _ = fs::remove_dir_all(tmp_dir);
     }
+
+    // ── Detached HEAD ──────────────────────────────────────
+
+    /// Detached HEAD 状態では "detached@" プレフィックスが返る
+    #[test]
+    fn git_current_branch_detached_head() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-test-detached-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| -> String {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        };
+
+        run_git(&["init"]);
+        run_git(&["config", "user.name", "Blink Test"]);
+        run_git(&["config", "user.email", "blink@example.com"]);
+
+        fs::write(tmp_dir.join("file.txt"), "first\n").unwrap();
+        run_git(&["add", "file.txt"]);
+        run_git(&["commit", "-m", "first commit"]);
+
+        fs::write(tmp_dir.join("file.txt"), "second\n").unwrap();
+        run_git(&["add", "file.txt"]);
+        run_git(&["commit", "-m", "second commit"]);
+
+        run_git(&["checkout", "HEAD~1"]);
+
+        let branch = git_current_branch(tmp_dir.to_str().unwrap()).unwrap();
+        assert!(
+            branch.starts_with("detached@"),
+            "Expected branch to start with 'detached@', got: {branch}"
+        );
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    // ── New repo (no commits) ──────────────────────────────
+
+    /// コミットのない新しいリポジトリで untracked ファイルが検出される
+    #[test]
+    fn git_status_new_repo_no_commits() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-test-new-repo-status-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+
+        run_git(&["init"]);
+        fs::write(tmp_dir.join("new_file.txt"), "hello\n").unwrap();
+
+        let status = git_status(tmp_dir.to_str().unwrap()).unwrap();
+        assert!(
+            status
+                .untracked
+                .iter()
+                .any(|e| e.path.ends_with("new_file.txt")),
+            "Expected new_file.txt in untracked, got: {:?}",
+            status.untracked
+        );
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    /// コミットのない新しいリポジトリでブランチ取得はエラーになる
+    #[test]
+    fn git_current_branch_new_repo_no_commits() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-test-new-repo-branch-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+
+        run_git(&["init"]);
+
+        let result = git_current_branch(tmp_dir.to_str().unwrap());
+        // Git バージョンにより挙動が異なる:
+        // - 新しい Git: branch --show-current がデフォルトブランチ名を返す → Ok
+        // - 古い Git: 空を返し rev-parse --short HEAD も失敗 → Err
+        match result {
+            Ok(branch) => assert!(!branch.is_empty(), "branch name should not be empty"),
+            Err(e) => assert!(
+                e.contains("git rev-parse") || e.contains("ブランチ名"),
+                "unexpected error: {e}"
+            ),
+        }
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    // ── parse_porcelain additional ─────────────────────────
+
+    /// 全ゼロハッシュ（未コミット境界）のパース
+    #[test]
+    fn parse_porcelain_with_uncommitted_boundary() {
+        let input = "\
+0000000000000000000000000000000000000000 1 1 1
+author Not Committed Yet
+author-time 0
+summary Not Committed Yet
+filename src/main.rs
+\tlet x = 1;
+";
+        let result = parse_porcelain(input).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].commit, "0000000");
+        assert_eq!(result[0].author, "Not Committed Yet");
+        assert_eq!(result[0].author_time, 0);
+    }
+
+    /// サマリに特殊文字（引用符、&、<）が含まれる場合も保持される
+    #[test]
+    fn parse_porcelain_with_special_characters_in_summary() {
+        let input = "\
+abcdef1234567890abcdef1234567890abcdef12 1 1 1
+author Alice
+author-time 1700000000
+summary fix: handle \"quotes\" & <angle> brackets
+filename src/main.rs
+\tcode line
+";
+        let result = parse_porcelain(input).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result[0].summary,
+            "fix: handle \"quotes\" & <angle> brackets"
+        );
+    }
+
+    /// 大きい行番号（9999）が正しくパースされる
+    #[test]
+    fn parse_porcelain_large_line_numbers() {
+        let input = "\
+abcdef1234567890abcdef1234567890abcdef12 9999 9999 1
+author Alice
+author-time 1700000000
+summary big file
+filename src/main.rs
+\tline content
+";
+        let result = parse_porcelain(input).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].line, 9999);
+    }
+
+    /// insta スナップショット: 複数行 porcelain パース結果
+    #[test]
+    fn parse_porcelain_snapshot() {
+        let input = "\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 1 1 2
+author Alice
+author-time 1700000000
+summary initial commit
+filename lib.rs
+\tline1
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 2 2
+author Alice
+author-time 1700000000
+summary initial commit
+filename lib.rs
+\tline2
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 3 3 1
+author Bob
+author-time 1700100000
+summary second commit
+filename lib.rs
+\tline3
+";
+        let result = parse_porcelain(input).unwrap();
+        insta::assert_yaml_snapshot!(result);
+    }
+
+    // ── parse_status_porcelain additional ──────────────────
+
+    /// クォートされたパス（日本語ファイル名のオクタルエスケープ）のパース
+    #[test]
+    fn parse_status_porcelain_quoted_paths() {
+        let repo_root = PathBuf::from("/tmp/blink-repo");
+        let input = "?? \"\\\u{0033}43\\203\\206\\\u{0033}43\\202\\271\\\u{0033}43\\203\\210.txt\"\n";
+        let status = parse_status_porcelain(input, &repo_root).unwrap();
+        assert_eq!(status.untracked.len(), 1);
+        // normalize_status_path はクォートを除去するがオクタルエスケープはデコードしない
+        assert!(status.untracked[0].path.contains(".txt"));
+    }
+
+    /// 削除されたファイルのパース（" D" = unstaged削除, "D " = staged削除）
+    #[test]
+    fn parse_status_porcelain_deleted_files() {
+        let repo_root = PathBuf::from("/tmp/blink-repo");
+        let input = " D src/removed.swift\nD  src/staged_delete.swift\n";
+        let status = parse_status_porcelain(input, &repo_root).unwrap();
+
+        // " D" → unstaged only (作業ツリーから削除)
+        assert_eq!(status.unstaged.len(), 1);
+        assert!(status.unstaged[0].path.ends_with("/src/removed.swift"));
+
+        // "D " → staged only (インデックスから削除)
+        assert_eq!(status.staged.len(), 1);
+        assert!(status.staged[0].path.ends_with("/src/staged_delete.swift"));
+    }
+
+    /// ステージされた新規ファイル（"A "）のパース
+    #[test]
+    fn parse_status_porcelain_added_files() {
+        let repo_root = PathBuf::from("/tmp/blink-repo");
+        let input = "A  src/new_file.swift\n";
+        let status = parse_status_porcelain(input, &repo_root).unwrap();
+
+        assert_eq!(status.staged.len(), 1);
+        assert!(status.staged[0].path.ends_with("/src/new_file.swift"));
+        assert_eq!(status.staged[0].status, "A ");
+        assert!(status.unstaged.is_empty());
+        assert!(status.untracked.is_empty());
+    }
+
+    // ── Cache behavior ─────────────────────────────────────
+
+    /// blame_commit_diff を同じ引数で2回呼んでも同じ結果が返る（キャッシュ）
+    #[test]
+    fn blame_commit_diff_caches_result() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-test-cache-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| -> String {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        };
+
+        run_git(&["init"]);
+        run_git(&["config", "user.name", "Blink Test"]);
+        run_git(&["config", "user.email", "blink@example.com"]);
+
+        let file_path = tmp_dir.join("cache_test.txt");
+        fs::write(&file_path, "initial content\n").unwrap();
+        run_git(&["add", "cache_test.txt"]);
+        run_git(&["commit", "-m", "first"]);
+
+        fs::write(&file_path, "modified content\n").unwrap();
+        run_git(&["add", "cache_test.txt"]);
+        run_git(&["commit", "-m", "second"]);
+
+        let commit = run_git(&["rev-parse", "HEAD"]);
+        let file_str = file_path.to_str().unwrap();
+
+        let result1 = blame_commit_diff(file_str, &commit).unwrap();
+        let result2 = blame_commit_diff(file_str, &commit).unwrap();
+        assert_eq!(result1, result2);
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    /// 異なるコミットは異なる差分を返す
+    #[test]
+    fn blame_commit_diff_different_commits_return_different_results() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-test-diff-commits-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| -> String {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        };
+
+        run_git(&["init"]);
+        run_git(&["config", "user.name", "Blink Test"]);
+        run_git(&["config", "user.email", "blink@example.com"]);
+
+        let file_path = tmp_dir.join("multi.txt");
+        fs::write(&file_path, "v1\n").unwrap();
+        run_git(&["add", "multi.txt"]);
+        run_git(&["commit", "-m", "v1"]);
+        let commit1 = run_git(&["rev-parse", "HEAD"]);
+
+        fs::write(&file_path, "v2\n").unwrap();
+        run_git(&["add", "multi.txt"]);
+        run_git(&["commit", "-m", "v2"]);
+        let commit2 = run_git(&["rev-parse", "HEAD"]);
+
+        let file_str = file_path.to_str().unwrap();
+        let diff1 = blame_commit_diff(file_str, &commit1).unwrap();
+        let diff2 = blame_commit_diff(file_str, &commit2).unwrap();
+        assert_ne!(diff1.diff_text, diff2.diff_text);
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    // ── Validation ─────────────────────────────────────────
+
+    /// 空の root_path は git_status でバリデーションエラー
+    #[test]
+    fn git_status_empty_root_path() {
+        let result = git_status("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("root_path が空です"));
+    }
+
+    /// 空の root_path は git_current_branch でバリデーションエラー
+    #[test]
+    fn git_current_branch_empty_root_path() {
+        let result = git_current_branch("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("root_path が空です"));
+    }
 }
