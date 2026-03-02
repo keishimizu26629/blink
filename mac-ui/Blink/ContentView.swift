@@ -30,6 +30,16 @@ struct ContentView: View {
 
                 if let content = viewModel.fileContent {
                     VStack(spacing: 0) {
+                        if viewModel.isBlameVisible, let blameError = viewModel.blameErrorMessage, !blameError.isEmpty {
+                            Text("Blame取得失敗: \(blameError)")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.red.opacity(0.08))
+                        }
+
                         HStack(spacing: 0) {
                             if viewModel.isBlameVisible {
                                 ScrollView(.vertical, showsIndicators: false) {
@@ -42,7 +52,13 @@ struct ContentView: View {
                                         }
                                     )
                                 }
-                                .frame(width: 130)
+                                .frame(width: 170)
+                                .background(Color(nsColor: SyntaxTheme.backgroundColor).opacity(0.98))
+                                .overlay(
+                                    Rectangle()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                                .zIndex(1)
 
                                 Divider()
                             }
@@ -219,13 +235,7 @@ private struct BlameDiffPanelView: View {
                     .foregroundStyle(.red)
                     .textSelection(.enabled)
             } else if let diff {
-                ScrollView {
-                    Text(diff.diffText)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                }
+                PRDiffTableView(diffText: diff.diffText)
             } else {
                 Text("Blame 行を選択すると差分を表示します。")
                     .foregroundStyle(.secondary)
@@ -241,5 +251,235 @@ private struct BlameDiffPanelView: View {
             return "Diff: \(diff.commit)"
         }
         return "Diff"
+    }
+}
+
+private struct PRDiffTableView: View {
+    private enum RowKind {
+        case added
+        case removed
+        case context
+        case hunk
+        case meta
+    }
+
+    private struct Row: Identifiable {
+        let id: Int
+        let oldLine: Int?
+        let newLine: Int?
+        let kind: RowKind
+        let text: String
+    }
+
+    private static let hunkRegex = try? NSRegularExpression(
+        pattern: #"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@"#
+    )
+
+    private let rows: [Row]
+    private let lineColumnWidth: CGFloat = 56
+    private let markerColumnWidth: CGFloat = 22
+
+    init(diffText: String) {
+        rows = Self.parse(diffText: diffText)
+    }
+
+    var body: some View {
+        ScrollView([.vertical, .horizontal]) {
+            VStack(alignment: .leading, spacing: 0) {
+                headerRow
+                Divider()
+                ForEach(rows) { row in
+                    HStack(spacing: 0) {
+                        lineCell(lineNumberText(row.oldLine))
+                        lineCell(lineNumberText(row.newLine))
+                        markerCell(markerText(for: row.kind))
+                        Text(codeText(for: row))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .lineLimit(1)
+                    }
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(foregroundColor(for: row.kind))
+                    .background(backgroundColor(for: row.kind))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .textSelection(.enabled)
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 0) {
+            lineCell("old")
+            lineCell("new")
+            markerCell("")
+            Text("code")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+        }
+        .font(.system(size: 11, design: .monospaced).weight(.semibold))
+        .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.9))
+        .background(Color.white.opacity(0.06))
+    }
+
+    private func lineCell(_ text: String) -> some View {
+        Text(text)
+            .frame(width: lineColumnWidth, alignment: .trailing)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundStyle(Color(nsColor: SyntaxTheme.lineNumberColor))
+    }
+
+    private func markerCell(_ text: String) -> some View {
+        Text(text)
+            .frame(width: markerColumnWidth, alignment: .center)
+            .padding(.vertical, 2)
+    }
+
+    private func lineNumberText(_ value: Int?) -> String {
+        if let value {
+            return "\(value)"
+        }
+        return ""
+    }
+
+    private func markerText(for kind: RowKind) -> String {
+        switch kind {
+        case .added:
+            return "+"
+        case .removed:
+            return "-"
+        case .context:
+            return " "
+        case .hunk:
+            return "@"
+        case .meta:
+            return " "
+        }
+    }
+
+    private func codeText(for row: Row) -> String {
+        switch row.kind {
+        case .added:
+            return "+ " + row.text
+        case .removed:
+            return "- " + row.text
+        case .context:
+            return "  " + row.text
+        case .hunk:
+            return row.text
+        case .meta:
+            return row.text
+        }
+    }
+
+    private func foregroundColor(for kind: RowKind) -> Color {
+        switch kind {
+        case .added:
+            return Color.white.opacity(0.95)
+        case .removed:
+            return Color.white.opacity(0.95)
+        case .context:
+            return Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.9)
+        case .hunk:
+            return Color.white.opacity(0.95)
+        case .meta:
+            return Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.75)
+        }
+    }
+
+    private func backgroundColor(for kind: RowKind) -> Color {
+        switch kind {
+        case .added:
+            return Color.green.opacity(0.20)
+        case .removed:
+            return Color.red.opacity(0.20)
+        case .context:
+            return Color.clear
+        case .hunk:
+            return Color.blue.opacity(0.25)
+        case .meta:
+            return Color.white.opacity(0.04)
+        }
+    }
+
+    private static func parse(diffText: String) -> [Row] {
+        let lines = diffText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var rows: [Row] = []
+        var oldLine: Int?
+        var newLine: Int?
+
+        for (index, line) in lines.enumerated() {
+            if let (nextOld, nextNew) = parseHunkHeader(line) {
+                oldLine = nextOld
+                newLine = nextNew
+                rows.append(Row(id: index, oldLine: nil, newLine: nil, kind: .hunk, text: line))
+                continue
+            }
+
+            if line.hasPrefix("diff --git")
+                || line.hasPrefix("index ")
+                || line.hasPrefix("--- ")
+                || line.hasPrefix("+++ ")
+            {
+                rows.append(Row(id: index, oldLine: nil, newLine: nil, kind: .meta, text: line))
+                continue
+            }
+
+            if line.hasPrefix("+"), !line.hasPrefix("+++") {
+                rows.append(Row(id: index, oldLine: nil, newLine: newLine, kind: .added, text: String(line.dropFirst())))
+                if let current = newLine {
+                    newLine = current + 1
+                }
+                continue
+            }
+
+            if line.hasPrefix("-"), !line.hasPrefix("---") {
+                rows.append(Row(id: index, oldLine: oldLine, newLine: nil, kind: .removed, text: String(line.dropFirst())))
+                if let current = oldLine {
+                    oldLine = current + 1
+                }
+                continue
+            }
+
+            if line.hasPrefix(" ") {
+                rows.append(Row(id: index, oldLine: oldLine, newLine: newLine, kind: .context, text: String(line.dropFirst())))
+                if let current = oldLine {
+                    oldLine = current + 1
+                }
+                if let current = newLine {
+                    newLine = current + 1
+                }
+                continue
+            }
+
+            rows.append(Row(id: index, oldLine: nil, newLine: nil, kind: .meta, text: line))
+        }
+
+        return rows
+    }
+
+    private static func parseHunkHeader(_ line: String) -> (Int, Int)? {
+        guard let hunkRegex,
+              let match = hunkRegex.firstMatch(
+                  in: line,
+                  options: [],
+                  range: NSRange(location: 0, length: (line as NSString).length)
+              )
+        else { return nil }
+
+        let oldRange = match.range(at: 1)
+        let newRange = match.range(at: 2)
+        guard oldRange.location != NSNotFound,
+              newRange.location != NSNotFound
+        else { return nil }
+
+        let nsLine = line as NSString
+        let oldText = nsLine.substring(with: oldRange)
+        let newText = nsLine.substring(with: newRange)
+        guard let old = Int(oldText), let new = Int(newText) else { return nil }
+        return (old, new)
     }
 }

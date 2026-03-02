@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// Blame 情報を行ごとに表示するガタービュー
@@ -5,40 +6,45 @@ struct BlameGutterView: View {
     let blameLines: [BlameLine]
     let onSelectLine: (BlameLine) -> Void
     let lineHeight: CGFloat = 18
+    private let lineNumberWidth: CGFloat = 34
+    private let authorWidth: CGFloat = 60
+    private let dateWidth: CGFloat = 50
+    private let baseTextColor = Color.white
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(blameLines.enumerated()), id: \.offset) { index, blame in
-                let showInfo = shouldShowInfo(at: index)
-                HStack(spacing: 4) {
-                    if showInfo {
-                        Text(shortAuthor(blame.author))
-                            .frame(width: 60, alignment: .leading)
+            ForEach(Array(blameLines.enumerated()), id: \.offset) { _, blame in
+                Button {
+                    NSLog("[BlameGutterView:tap] line=%u commit=%@", blame.line, blame.commit)
+                    onSelectLine(blame)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("\(blame.line)")
+                            .frame(width: lineNumberWidth, alignment: .trailing)
+                            .foregroundStyle(baseTextColor.opacity(0.52))
+                            .lineLimit(1)
+
+                        Text(displayAuthor(blame))
+                            .frame(width: authorWidth, alignment: .leading)
+                            .foregroundStyle(baseTextColor.opacity(0.82))
                             .lineLimit(1)
                         Text(relativeDate(from: blame.authorTime))
-                            .frame(width: 50, alignment: .trailing)
+                            .frame(width: dateWidth, alignment: .trailing)
+                            .foregroundStyle(baseTextColor.opacity(0.68))
                             .lineLimit(1)
-                    } else {
-                        Spacer()
-                            .frame(width: 114)
+
+                        Spacer(minLength: 0)
                     }
+                    .font(.system(size: 10, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: lineHeight)
                 }
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .frame(height: lineHeight)
+                .buttonStyle(.plain)
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    onSelectLine(blame)
-                }
             }
         }
         .padding(.horizontal, 4)
-    }
-
-    /// 同一コミットの連続行は最初の行のみ表示
-    private func shouldShowInfo(at index: Int) -> Bool {
-        guard index > 0 else { return true }
-        return blameLines[index].commit != blameLines[index - 1].commit
+        .background(Color.black.opacity(0.20))
     }
 
     /// 著者名を短縮（最大8文字）
@@ -47,6 +53,14 @@ struct BlameGutterView: View {
             return name
         }
         return String(name.prefix(7)) + "…"
+    }
+
+    private func displayAuthor(_ blame: BlameLine) -> String {
+        let trimmed = blame.author.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return shortAuthor(trimmed)
+        }
+        return blame.commit
     }
 
     /// エポック秒から相対日付文字列を生成

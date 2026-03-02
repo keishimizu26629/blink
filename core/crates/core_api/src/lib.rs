@@ -81,11 +81,26 @@ pub fn blame_range(
     end_line: u32,
 ) -> Result<Vec<BlameLine>, CoreError> {
     match core_git::blame_file(&path) {
-        Ok(lines) => Ok(lines
-            .into_iter()
-            .filter(|bl| bl.line >= start_line && bl.line <= end_line)
-            .collect()),
-        Err(_) => Ok(vec![]),
+        Ok(lines) => {
+            let raw_count = lines.len();
+            let first_line = lines.first().map(|l| l.line).unwrap_or(0);
+            let last_line = lines.last().map(|l| l.line).unwrap_or(0);
+            let filtered: Vec<BlameLine> = lines
+                .into_iter()
+                .filter(|bl| bl.line >= start_line && bl.line <= end_line)
+                .collect();
+
+            if filtered.is_empty() {
+                return Err(core_error(format!(
+                    "blame_range empty: path={path}, range={start_line}-{end_line}, raw_count={raw_count}, first_line={first_line}, last_line={last_line}"
+                )));
+            }
+
+            Ok(filtered)
+        }
+        Err(reason) => Err(core_error(format!(
+            "blame_range error: path={path}, range={start_line}-{end_line}, reason={reason}"
+        ))),
     }
 }
 
@@ -222,10 +237,9 @@ mod tests {
     }
 
     #[test]
-    fn blame_range_non_git_returns_empty() {
+    fn blame_range_non_git_returns_error() {
         let result = blame_range("/tmp/nonexistent_file.rs".to_string(), 1, 10);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.is_err());
     }
 
     #[test]

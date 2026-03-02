@@ -17,6 +17,7 @@ final class ProjectViewModel: ObservableObject {
     @Published var isDiffPanelVisible: Bool = false
     @Published var isDiffLoading: Bool = false
     @Published var diffErrorMessage: String?
+    @Published var blameErrorMessage: String?
     @Published var errorMessage: String?
     @Published var windowOpacity: Double
 
@@ -53,10 +54,12 @@ final class ProjectViewModel: ObservableObject {
     /// プロジェクトを開く
     func openProject(path: String) async {
         rootPath = path
+        NSLog("[ProjectViewModel:openProject] rootPath=%@", path)
         visibleRangeFetchTask?.cancel()
         do {
             _ = try Blink.openProject(rootPath: path)
             let fileNodes = try listDir(rootPath: path, dirPath: path)
+            NSLog("[ProjectViewModel:openProject:success] rootPath=%@ entries=%ld", path, fileNodes.count)
             rootNodes = fileNodes.map { TreeNode(node: $0) }
             selectedFile = nil
             fileContent = nil
@@ -66,11 +69,13 @@ final class ProjectViewModel: ObservableObject {
             isDiffPanelVisible = false
             isDiffLoading = false
             diffErrorMessage = nil
+            blameErrorMessage = nil
             currentVisibleRange = nil
             totalLineCount = 0
             errorMessage = nil
         } catch {
             print("Failed to open project: \(error)")
+            NSLog("[ProjectViewModel:openProject:error] rootPath=%@ error=%@", path, error.localizedDescription)
             rootNodes = []
             selectedFile = nil
             fileContent = nil
@@ -80,6 +85,7 @@ final class ProjectViewModel: ObservableObject {
             isDiffPanelVisible = false
             isDiffLoading = false
             diffErrorMessage = nil
+            blameErrorMessage = nil
             currentVisibleRange = nil
             totalLineCount = 0
             errorMessage = "フォルダを開けませんでした: \(error.localizedDescription)"
@@ -90,6 +96,7 @@ final class ProjectViewModel: ObservableObject {
     func selectFile(node: TreeNode) async {
         guard node.kind == .file else { return }
         selectedFile = node
+        NSLog("[ProjectViewModel:selectFile:start] path=%@", node.path)
 
         do {
             let content = try readFile(path: node.path)
@@ -99,17 +106,20 @@ final class ProjectViewModel: ObservableObject {
             currentVisibleRange = nil
             highlightTokens = []
             blameLines = []
+            blameErrorMessage = nil
             closeDiffPanel()
 
             let initialEndLine = min(totalLineCount, 220)
             if initialEndLine >= 1 {
                 updateVisibleRange(startLine: 1, endLine: initialEndLine)
             }
+            NSLog("[ProjectViewModel:selectFile:success] path=%@ totalLines=%u", node.path, totalLineCount)
         } catch {
             print("Failed to read file: \(error)")
             fileContent = nil
             highlightTokens = []
             blameLines = []
+            blameErrorMessage = nil
             selectedBlameDiff = nil
             isDiffPanelVisible = false
             isDiffLoading = false
@@ -127,12 +137,19 @@ final class ProjectViewModel: ObservableObject {
 
     func toggleBlameVisibility() {
         isBlameVisible.toggle()
+        NSLog(
+            "[ProjectViewModel:toggleBlameVisibility] visible=%@ selectedFile=%@ currentBlameLines=%ld",
+            isBlameVisible ? "true" : "false",
+            selectedFile?.path ?? "nil",
+            blameLines.count
+        )
         if isBlameVisible {
             if let visible = currentVisibleRange {
                 fetchVisibleRangeIfNeeded(visible, forceRefresh: true)
             }
         } else {
             blameLines = []
+            blameErrorMessage = nil
         }
     }
 
@@ -168,6 +185,12 @@ final class ProjectViewModel: ObservableObject {
         guard let selectedFile else { return }
         let filePath = selectedFile.path
 
+        NSLog(
+            "[ProjectViewModel:selectBlameLine:start] line=%u commit=%@ path=%@",
+            line.line,
+            line.commit,
+            filePath
+        )
         isDiffPanelVisible = true
         isDiffLoading = true
         diffErrorMessage = nil
@@ -177,6 +200,7 @@ final class ProjectViewModel: ObservableObject {
         }.value
 
         guard selectedFile.path == filePath else {
+            NSLog("[ProjectViewModel:selectBlameLine:cancelled] reason=selected-file-changed")
             isDiffLoading = false
             return
         }
@@ -184,9 +208,19 @@ final class ProjectViewModel: ObservableObject {
         switch result {
         case let .success(diff):
             selectedBlameDiff = diff
+            NSLog(
+                "[ProjectViewModel:selectBlameLine:success] commit=%@ diffLength=%ld",
+                diff.commit,
+                diff.diffText.count
+            )
         case let .failure(error):
             selectedBlameDiff = nil
             diffErrorMessage = "差分取得に失敗しました: \(error.localizedDescription)"
+            NSLog(
+                "[ProjectViewModel:selectBlameLine:error] commit=%@ error=%@",
+                line.commit,
+                error.localizedDescription
+            )
         }
         isDiffLoading = false
     }
@@ -245,6 +279,14 @@ final class ProjectViewModel: ObservableObject {
         visibleRangeFetchTask?.cancel()
 
         let shouldFetchBlame = isBlameVisible
+        NSLog(
+            "[ProjectViewModel:fetchVisibleRange:start] path=%@ range=%u-%u force=%@ fetchBlame=%@",
+            path,
+            range.lowerBound,
+            range.upperBound,
+            forceRefresh ? "true" : "false",
+            shouldFetchBlame ? "true" : "false"
+        )
         visibleRangeFetchTask = Task { [weak self] in
             guard let self else { return }
             let startLine = range.lowerBound
@@ -256,17 +298,49 @@ final class ProjectViewModel: ObservableObject {
                     startLine: startLine,
                     endLine: endLine
                 )) ?? []
-                let blame = shouldFetchBlame ? ((try? blameRange(
-                    path: path,
-                    startLine: startLine,
-                    endLine: endLine
-                )) ?? []) : []
-                return (tokens, blame)
+                if shouldFetchBlame {
+                    do {
+                        let blame = try blameRange(
+                            path: path,
+                            startLine: startLine,
+                            endLine: endLine
+                        )
+                        return (tokens, blame, nil as String?)
+                    } catch {
+                        return (tokens, [] as [BlameLine], error.localizedDescription)
+                    }
+                }
+                return (tokens, [] as [BlameLine], nil as String?)
             }.value
 
             guard !Task.isCancelled, selectedFile?.path == path else { return }
             highlightTokens = fetched.0
             blameLines = fetched.1
+            blameErrorMessage = fetched.2
+            NSLog(
+                "[ProjectViewModel:fetchVisibleRange:done] path=%@ range=%u-%u highlightTokens=%ld blameLines=%ld",
+                path,
+                startLine,
+                endLine,
+                fetched.0.count,
+                fetched.1.count
+            )
+
+            if shouldFetchBlame,
+               fetched.2 == nil,
+               selectedBlameDiff == nil,
+               !isDiffLoading,
+               let firstLine = fetched.1.first
+            {
+                NSLog(
+                    "[ProjectViewModel:fetchVisibleRange:autoSelect] line=%u commit=%@",
+                    firstLine.line,
+                    firstLine.commit
+                )
+                Task { [weak self] in
+                    await self?.selectBlameLine(firstLine)
+                }
+            }
         }
     }
 }
