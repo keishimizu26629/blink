@@ -6,11 +6,11 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use core_types::{BlameDiff, BlameLine};
+use core_types::{BlameLine, GitFileDiff, GitStatus, GitStatusEntry};
 
-static DIFF_CACHE: OnceLock<Mutex<HashMap<String, BlameDiff>>> = OnceLock::new();
+static DIFF_CACHE: OnceLock<Mutex<HashMap<String, GitFileDiff>>> = OnceLock::new();
 
-fn diff_cache() -> &'static Mutex<HashMap<String, BlameDiff>> {
+fn diff_cache() -> &'static Mutex<HashMap<String, GitFileDiff>> {
     DIFF_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -89,6 +89,36 @@ fn resolve_repo_context(file_path: &str) -> Result<(PathBuf, String), String> {
     Ok((repo_root, relative_path))
 }
 
+fn resolve_repo_root(target_path: &str) -> Result<PathBuf, String> {
+    let path = Path::new(target_path);
+    let absolute_path = fs::canonicalize(path)
+        .map_err(|e| format!("対象パスの正規化に失敗しました: {target_path}: {e}"))?;
+    let search_dir = if absolute_path.is_dir() {
+        absolute_path.clone()
+    } else {
+        absolute_path
+            .parent()
+            .ok_or_else(|| format!("対象パスの親ディレクトリを取得できません: {target_path}"))?
+            .to_path_buf()
+    };
+
+    let repo_root_output = git_command()
+        .arg("-C")
+        .arg(&search_dir)
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !repo_root_output.status.success() {
+        let stderr = String::from_utf8_lossy(&repo_root_output.stderr);
+        return Err(format!("git rev-parse 失敗: {stderr}"));
+    }
+
+    let repo_root_raw = String::from_utf8_lossy(&repo_root_output.stdout);
+    fs::canonicalize(repo_root_raw.trim())
+        .map_err(|e| format!("リポジトリルートの正規化に失敗しました: {e}"))
+}
+
 /// git blame --line-porcelain の出力をパースして BlameLine のリストを返す
 pub fn blame_file(file_path: &str) -> Result<Vec<BlameLine>, String> {
     let (repo_root, relative_path) = resolve_repo_context(file_path)?;
@@ -109,7 +139,7 @@ pub fn blame_file(file_path: &str) -> Result<Vec<BlameLine>, String> {
 }
 
 /// 指定コミットの対象ファイル差分を unified diff 文字列で返す
-pub fn blame_commit_diff(file_path: &str, commit: &str) -> Result<BlameDiff, String> {
+pub fn blame_commit_diff(file_path: &str, commit: &str) -> Result<GitFileDiff, String> {
     if file_path.trim().is_empty() {
         return Err("file_path が空です".to_string());
     }
@@ -151,7 +181,7 @@ pub fn blame_commit_diff(file_path: &str, commit: &str) -> Result<BlameDiff, Str
         return Err("差分が見つかりませんでした".to_string());
     }
 
-    let diff = BlameDiff {
+    let diff = GitFileDiff {
         commit: commit.to_string(),
         path: file_path.to_string(),
         diff_text,
@@ -162,6 +192,250 @@ pub fn blame_commit_diff(file_path: &str, commit: &str) -> Result<BlameDiff, Str
         .map_err(|e| format!("diff cache lock 失敗: {e}"))?
         .insert(cache_key, diff.clone());
     Ok(diff)
+}
+
+/// 対象ファイルの現在差分（staged/unstaged/untracked）を unified diff 文字列で返す
+pub fn git_file_diff(file_path: &str) -> Result<GitFileDiff, String> {
+    if file_path.trim().is_empty() {
+        return Err("file_path が空です".to_string());
+    }
+
+    let absolute_path = fs::canonicalize(file_path)
+        .map_err(|e| format!("対象ファイルの正規化に失敗しました: {file_path}: {e}"))?;
+    let (repo_root, relative_path) = resolve_repo_context(file_path)?;
+
+    let unstaged_output = git_command()
+        .current_dir(&repo_root)
+        .args(["diff", "--no-color", "--", &relative_path])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !unstaged_output.status.success() {
+        let stderr = String::from_utf8_lossy(&unstaged_output.stderr);
+        return Err(format!("git diff 失敗: {stderr}"));
+    }
+
+    let staged_output = git_command()
+        .current_dir(&repo_root)
+        .args(["diff", "--no-color", "--cached", "--", &relative_path])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !staged_output.status.success() {
+        let stderr = String::from_utf8_lossy(&staged_output.stderr);
+        return Err(format!("git diff --cached 失敗: {stderr}"));
+    }
+
+    let mut sections: Vec<String> = Vec::new();
+    let unstaged_diff = String::from_utf8_lossy(&unstaged_output.stdout).to_string();
+    if !unstaged_diff.trim().is_empty() {
+        sections.push(unstaged_diff);
+    }
+
+    let staged_diff = String::from_utf8_lossy(&staged_output.stdout).to_string();
+    if !staged_diff.trim().is_empty() {
+        sections.push(staged_diff);
+    }
+
+    if sections.is_empty() {
+        let untracked_output = git_command()
+            .current_dir(&repo_root)
+            .args([
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "--",
+                &relative_path,
+            ])
+            .output()
+            .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+        if !untracked_output.status.success() {
+            let stderr = String::from_utf8_lossy(&untracked_output.stderr);
+            return Err(format!("git ls-files 失敗: {stderr}"));
+        }
+
+        if !String::from_utf8_lossy(&untracked_output.stdout)
+            .trim()
+            .is_empty()
+        {
+            let absolute_path_text = absolute_path.to_string_lossy().to_string();
+            let untracked_diff_output = git_command()
+                .current_dir(&repo_root)
+                .args([
+                    "diff",
+                    "--no-color",
+                    "--no-index",
+                    "--",
+                    "/dev/null",
+                    &absolute_path_text,
+                ])
+                .output()
+                .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+            let status_code = untracked_diff_output.status.code();
+            if !(untracked_diff_output.status.success() || status_code == Some(1)) {
+                let stderr = String::from_utf8_lossy(&untracked_diff_output.stderr);
+                return Err(format!("git diff --no-index 失敗: {stderr}"));
+            }
+
+            let untracked_diff = String::from_utf8_lossy(&untracked_diff_output.stdout).to_string();
+            if !untracked_diff.trim().is_empty() {
+                sections.push(untracked_diff);
+            }
+        }
+    }
+
+    if sections.is_empty() {
+        return Err("差分が見つかりませんでした".to_string());
+    }
+
+    let diff_text = sections.join("\n");
+    Ok(GitFileDiff {
+        commit: "working-tree".to_string(),
+        path: file_path.to_string(),
+        diff_text,
+    })
+}
+
+/// リポジトリの変更状態（staged / unstaged / untracked）を返す
+pub fn git_status(root_path: &str) -> Result<GitStatus, String> {
+    if root_path.trim().is_empty() {
+        return Err("root_path が空です".to_string());
+    }
+
+    let repo_root = resolve_repo_root(root_path)?;
+    let output = git_command()
+        .current_dir(&repo_root)
+        .args(["status", "--porcelain", "--untracked-files=all"])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git status 失敗: {stderr}"));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_status_porcelain(&stdout, &repo_root)
+}
+
+/// 現在のブランチ名を返す（detached HEADの場合は detached@<short_sha>）
+pub fn git_current_branch(root_path: &str) -> Result<String, String> {
+    if root_path.trim().is_empty() {
+        return Err("root_path が空です".to_string());
+    }
+
+    let repo_root = resolve_repo_root(root_path)?;
+
+    let branch_output = git_command()
+        .current_dir(&repo_root)
+        .args(["branch", "--show-current"])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !branch_output.status.success() {
+        let stderr = String::from_utf8_lossy(&branch_output.stderr);
+        return Err(format!("git branch --show-current 失敗: {stderr}"));
+    }
+
+    let branch_name = String::from_utf8_lossy(&branch_output.stdout)
+        .trim()
+        .to_string();
+    if !branch_name.is_empty() {
+        return Ok(branch_name);
+    }
+
+    let head_output = git_command()
+        .current_dir(&repo_root)
+        .args(["rev-parse", "--short", "HEAD"])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !head_output.status.success() {
+        let stderr = String::from_utf8_lossy(&head_output.stderr);
+        return Err(format!("git rev-parse --short HEAD 失敗: {stderr}"));
+    }
+
+    let short_sha = String::from_utf8_lossy(&head_output.stdout)
+        .trim()
+        .to_string();
+    if short_sha.is_empty() {
+        return Err("ブランチ名を取得できませんでした".to_string());
+    }
+    Ok(format!("detached@{short_sha}"))
+}
+
+fn parse_status_porcelain(input: &str, repo_root: &Path) -> Result<GitStatus, String> {
+    let mut staged: Vec<GitStatusEntry> = Vec::new();
+    let mut unstaged: Vec<GitStatusEntry> = Vec::new();
+    let mut untracked: Vec<GitStatusEntry> = Vec::new();
+
+    for line in input.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        if line.len() < 3 {
+            continue;
+        }
+
+        let bytes = line.as_bytes();
+        let x = bytes[0] as char;
+        let y = bytes[1] as char;
+        let raw_path = line[3..].trim();
+        if raw_path.is_empty() {
+            continue;
+        }
+
+        let relative_path = normalize_status_path(raw_path);
+        let absolute_path = repo_root
+            .join(relative_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let status = format!("{x}{y}");
+
+        if x == '?' && y == '?' {
+            untracked.push(GitStatusEntry {
+                path: absolute_path,
+                status,
+            });
+            continue;
+        }
+
+        if x != ' ' {
+            staged.push(GitStatusEntry {
+                path: absolute_path.clone(),
+                status: status.clone(),
+            });
+        }
+        if y != ' ' {
+            unstaged.push(GitStatusEntry {
+                path: absolute_path,
+                status,
+            });
+        }
+    }
+
+    Ok(GitStatus {
+        staged,
+        unstaged,
+        untracked,
+    })
+}
+
+fn normalize_status_path(raw_path: &str) -> String {
+    let target = if let Some((_, new_path)) = raw_path.split_once(" -> ") {
+        new_path
+    } else {
+        raw_path
+    };
+
+    let trimmed = target.trim();
+    let without_quotes = trimmed
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .unwrap_or(trimmed);
+    without_quotes.replace("\\\"", "\"")
 }
 
 /// line-porcelain 形式の出力をパースする
@@ -400,5 +674,173 @@ filename lib.rs
     fn blame_commit_diff_empty_args_return_err() {
         assert!(blame_commit_diff("", "abc1234").is_err());
         assert!(blame_commit_diff(file!(), "").is_err());
+    }
+
+    #[test]
+    fn git_file_diff_modified_file_returns_unified_diff() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-core-git-diff-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+
+        run_git(&["init"]);
+        run_git(&["config", "user.name", "Blink Test"]);
+        run_git(&["config", "user.email", "blink@example.com"]);
+
+        let file_path = tmp_dir.join("sample.swift");
+        fs::write(&file_path, "let value = 1\n").unwrap();
+        run_git(&["add", "sample.swift"]);
+        run_git(&["commit", "-m", "initial"]);
+
+        fs::write(&file_path, "let value = 2\n").unwrap();
+
+        let diff = git_file_diff(file_path.to_str().unwrap()).unwrap();
+        assert!(diff.diff_text.contains("diff --git"));
+        assert!(diff.diff_text.contains("-let value = 1"));
+        assert!(diff.diff_text.contains("+let value = 2"));
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    #[test]
+    fn git_file_diff_non_git_file_returns_error() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-core-git-diff-non-git-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+        let file_path = tmp_dir.join("sample.swift");
+        fs::write(&file_path, "let value = 1\n").unwrap();
+
+        let result = git_file_diff(file_path.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("git rev-parse 失敗"));
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    #[test]
+    fn parse_status_porcelain_classifies_entries() {
+        let repo_root = PathBuf::from("/tmp/blink-repo");
+        let input = " M src/working.swift\nM  src/staged.swift\nMM src/both.swift\nR  src/old_name.swift -> src/new_name.swift\n?? src/new_file.swift\n";
+
+        let status = parse_status_porcelain(input, &repo_root).unwrap();
+
+        assert_eq!(status.staged.len(), 3);
+        assert_eq!(status.unstaged.len(), 2);
+        assert_eq!(status.untracked.len(), 1);
+
+        assert_eq!(status.staged[0].status, "M ");
+        assert!(status.staged[0].path.ends_with("/src/staged.swift"));
+        assert!(status.unstaged[0].path.ends_with("/src/working.swift"));
+        assert!(status.untracked[0].path.ends_with("/src/new_file.swift"));
+        assert!(status.staged[2].path.ends_with("/src/new_name.swift"));
+    }
+
+    #[test]
+    fn parse_status_porcelain_empty_returns_no_entries() {
+        let repo_root = PathBuf::from("/tmp/blink-repo");
+        let status = parse_status_porcelain("", &repo_root).unwrap();
+        assert!(status.staged.is_empty());
+        assert!(status.unstaged.is_empty());
+        assert!(status.untracked.is_empty());
+    }
+
+    #[test]
+    fn git_status_non_git_directory_returns_error() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-core-git-status-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+        let result = git_status(tmp_dir.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("git rev-parse 失敗"));
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    #[test]
+    fn git_current_branch_returns_non_empty_for_git_repo() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-core-git-branch-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let run_git = |args: &[&str]| {
+            let output = git_command()
+                .current_dir(&tmp_dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+
+        run_git(&["init"]);
+        run_git(&["config", "user.name", "Blink Test"]);
+        run_git(&["config", "user.email", "blink@example.com"]);
+        fs::write(tmp_dir.join("sample.swift"), "let value = 1\n").unwrap();
+        run_git(&["add", "sample.swift"]);
+        run_git(&["commit", "-m", "initial"]);
+
+        let branch = git_current_branch(tmp_dir.to_str().unwrap()).unwrap();
+        assert!(!branch.trim().is_empty());
+
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
+    #[test]
+    fn git_current_branch_non_git_directory_returns_error() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-core-git-branch-non-git-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+
+        let result = git_current_branch(tmp_dir.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("git rev-parse 失敗"));
+
+        let _ = fs::remove_dir_all(tmp_dir);
     }
 }
