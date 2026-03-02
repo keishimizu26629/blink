@@ -1,8 +1,5 @@
-uniffi::setup_scaffolding!();
-
 /// ファイルノード（ツリー表示用）
-/// children はSwift側で管理するため、FFI境界では含めない
-#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct FileNode {
     pub id: String,
     pub path: String,
@@ -11,14 +8,14 @@ pub struct FileNode {
 }
 
 /// ノード種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum NodeKind {
     File,
     Dir,
 }
 
 /// シンタックスハイライト用トークン
-#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct TokenSpan {
     pub line: u32,
     pub start_col: u32,
@@ -27,7 +24,7 @@ pub struct TokenSpan {
 }
 
 /// トークン種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum TokenType {
     Keyword,
     String,
@@ -42,7 +39,7 @@ pub enum TokenType {
 }
 
 /// Git Blame 行情報
-#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct BlameLine {
     pub line: u32,
     pub author: String,
@@ -52,7 +49,7 @@ pub struct BlameLine {
 }
 
 /// Git差分（コミット差分または作業ツリー差分）
-#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct GitFileDiff {
     pub commit: String,
     pub path: String,
@@ -60,14 +57,14 @@ pub struct GitFileDiff {
 }
 
 /// Git status の1エントリ
-#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct GitStatusEntry {
     pub path: String,
     pub status: String,
 }
 
 /// Git status 分類結果
-#[derive(Debug, Clone, PartialEq, uniffi::Record, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct GitStatus {
     pub staged: Vec<GitStatusEntry>,
     pub unstaged: Vec<GitStatusEntry>,
