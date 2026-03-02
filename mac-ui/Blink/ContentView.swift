@@ -137,7 +137,7 @@ struct ContentView: View {
                 opacity: viewModel.windowOpacity,
                 title: viewModel.rootDirectoryName
             )
-                .allowsHitTesting(false)
+            .allowsHitTesting(false)
         )
         .fileImporter(
             isPresented: $isFolderImporterPresented,
