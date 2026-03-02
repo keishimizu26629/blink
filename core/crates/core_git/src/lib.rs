@@ -1,11 +1,101 @@
-use std::process::Command;
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{Mutex, OnceLock},
+};
 
-use core_types::BlameLine;
+use core_types::{BlameDiff, BlameLine};
+
+static DIFF_CACHE: OnceLock<Mutex<HashMap<String, BlameDiff>>> = OnceLock::new();
+
+fn diff_cache() -> &'static Mutex<HashMap<String, BlameDiff>> {
+    DIFF_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[cfg(target_os = "macos")]
+static GIT_BINARY_PATH: OnceLock<String> = OnceLock::new();
+
+#[cfg(target_os = "macos")]
+fn resolve_git_binary_path() -> String {
+    // App Sandbox では /usr/bin/git が xcrun 経由にフォールバックして失敗するケースがあるため、
+    // xcrun を介さない実体 git バイナリを優先する。
+    let candidates = [
+        "/Library/Developer/CommandLineTools/usr/bin/git",
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
+        "/usr/bin/git",
+    ];
+
+    candidates
+        .iter()
+        .find(|path| fs::metadata(path).map(|m| m.is_file()).unwrap_or(false))
+        .unwrap_or(&"/usr/bin/git")
+        .to_string()
+}
+
+fn git_command() -> Command {
+    #[cfg(target_os = "macos")]
+    {
+        let mut command = Command::new(
+            GIT_BINARY_PATH
+                .get_or_init(resolve_git_binary_path)
+                .as_str(),
+        );
+        // Xcode 実行環境の環境変数を引き継ぐと xcrun 解決に寄ることがあるため除去する。
+        command.env_remove("DEVELOPER_DIR");
+        command.env_remove("SDKROOT");
+        command
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Command::new("git")
+    }
+}
+
+fn resolve_repo_context(file_path: &str) -> Result<(PathBuf, String), String> {
+    let path = Path::new(file_path);
+    let absolute_path = fs::canonicalize(path)
+        .map_err(|e| format!("対象ファイルの正規化に失敗しました: {file_path}: {e}"))?;
+    let search_dir = absolute_path
+        .parent()
+        .ok_or_else(|| format!("対象ファイルの親ディレクトリを取得できません: {file_path}"))?;
+
+    let repo_root_output = git_command()
+        .arg("-C")
+        .arg(search_dir)
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !repo_root_output.status.success() {
+        let stderr = String::from_utf8_lossy(&repo_root_output.stderr);
+        return Err(format!("git rev-parse 失敗: {stderr}"));
+    }
+
+    let repo_root_raw = String::from_utf8_lossy(&repo_root_output.stdout);
+    let repo_root = fs::canonicalize(repo_root_raw.trim())
+        .map_err(|e| format!("リポジトリルートの正規化に失敗しました: {e}"))?;
+
+    let relative_path = absolute_path.strip_prefix(&repo_root).map_err(|_| {
+        format!(
+            "対象ファイルがリポジトリ配下にありません: file={} repo={}",
+            absolute_path.display(),
+            repo_root.display()
+        )
+    })?;
+
+    let relative_path = relative_path.to_string_lossy().replace('\\', "/");
+    Ok((repo_root, relative_path))
+}
 
 /// git blame --line-porcelain の出力をパースして BlameLine のリストを返す
 pub fn blame_file(file_path: &str) -> Result<Vec<BlameLine>, String> {
-    let output = Command::new("git")
-        .args(["blame", "--line-porcelain", file_path])
+    let (repo_root, relative_path) = resolve_repo_context(file_path)?;
+
+    let output = git_command()
+        .current_dir(&repo_root)
+        .args(["blame", "--line-porcelain", "--", &relative_path])
         .output()
         .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
 
@@ -16,6 +106,62 @@ pub fn blame_file(file_path: &str) -> Result<Vec<BlameLine>, String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     parse_porcelain(&stdout)
+}
+
+/// 指定コミットの対象ファイル差分を unified diff 文字列で返す
+pub fn blame_commit_diff(file_path: &str, commit: &str) -> Result<BlameDiff, String> {
+    if file_path.trim().is_empty() {
+        return Err("file_path が空です".to_string());
+    }
+    if commit.trim().is_empty() {
+        return Err("commit が空です".to_string());
+    }
+
+    let (repo_root, relative_path) = resolve_repo_context(file_path)?;
+    let cache_key = format!("{commit}::{}::{relative_path}", repo_root.display());
+    if let Some(cached) = diff_cache()
+        .lock()
+        .map_err(|e| format!("diff cache lock 失敗: {e}"))?
+        .get(&cache_key)
+        .cloned()
+    {
+        return Ok(cached);
+    }
+
+    let output = git_command()
+        .current_dir(&repo_root)
+        .args([
+            "show",
+            "--no-color",
+            "--format=",
+            commit,
+            "--",
+            &relative_path,
+        ])
+        .output()
+        .map_err(|e| format!("git コマンドの実行に失敗しました: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git show 失敗: {stderr}"));
+    }
+
+    let diff_text = String::from_utf8_lossy(&output.stdout).to_string();
+    if diff_text.trim().is_empty() {
+        return Err("差分が見つかりませんでした".to_string());
+    }
+
+    let diff = BlameDiff {
+        commit: commit.to_string(),
+        path: file_path.to_string(),
+        diff_text,
+    };
+
+    diff_cache()
+        .lock()
+        .map_err(|e| format!("diff cache lock 失敗: {e}"))?
+        .insert(cache_key, diff.clone());
+    Ok(diff)
 }
 
 /// line-porcelain 形式の出力をパースする
@@ -81,6 +227,11 @@ fn parse_porcelain(input: &str) -> Result<Vec<BlameLine>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{fs, path::PathBuf};
+
+    fn repository_file_path() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs")
+    }
 
     /// ハードコードした porcelain 出力で基本パースをテスト
     #[test]
@@ -183,11 +334,42 @@ filename lib.rs
         assert!(result.is_empty());
     }
 
+    #[test]
+    fn resolve_repo_context_for_repository_file() {
+        let file_path = repository_file_path();
+        let file_str = file_path.to_str().unwrap();
+        let (repo_root, relative_path) = resolve_repo_context(file_str).unwrap();
+
+        assert!(repo_root.exists());
+        assert!(!relative_path.is_empty());
+        assert_eq!(relative_path, "core/crates/core_git/src/lib.rs");
+    }
+
+    #[test]
+    fn resolve_repo_context_non_git_file_returns_error() {
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "blink-core-git-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp_dir).unwrap();
+        let file = tmp_dir.join("sample.txt");
+        fs::write(&file, "hello").unwrap();
+
+        let result = resolve_repo_context(file.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("git rev-parse 失敗"));
+        let _ = fs::remove_dir_all(tmp_dir);
+    }
+
     /// 実際の git リポジトリで blame_file が動作するテスト
     #[test]
     fn blame_file_on_real_repo() {
-        // このテストファイル自身を blame する（git 管理下のため）
-        let result = blame_file(file!());
+        let file_path = repository_file_path();
+        let result = blame_file(file_path.to_str().unwrap());
         // CI 環境や浅いクローンでは失敗する可能性があるのでエラーは許容
         if let Ok(lines) = result {
             assert!(!lines.is_empty());
@@ -204,5 +386,19 @@ filename lib.rs
     fn blame_file_nonexistent() {
         let result = blame_file("/nonexistent/path/file.rs");
         assert!(result.is_err());
+    }
+
+    /// 無効コミットに対する差分取得はエラーを返す
+    #[test]
+    fn blame_commit_diff_invalid_commit_returns_err() {
+        let result = blame_commit_diff(file!(), "this-is-not-a-commit");
+        assert!(result.is_err());
+    }
+
+    /// 空入力はバリデーションエラーにする
+    #[test]
+    fn blame_commit_diff_empty_args_return_err() {
+        assert!(blame_commit_diff("", "abc1234").is_err());
+        assert!(blame_commit_diff(file!(), "").is_err());
     }
 }

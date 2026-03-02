@@ -4,6 +4,7 @@ import SwiftUI
 struct CodeTextView: NSViewRepresentable {
     @Binding var text: String
     let tokens: [TokenSpan]
+    let onVisibleLineRangeChange: (UInt32, UInt32) -> Void
     private let lineNumberWidth: CGFloat = 48
 
     func makeCoordinator() -> Coordinator {
@@ -48,11 +49,14 @@ struct CodeTextView: NSViewRepresentable {
             logLayout(phase: "make", textView: textView, scrollView: scrollView)
             logTextRenderingState(phase: "make", textView: textView)
         #endif
+        containerView.onVisibleLineRangeChange = { startLine, endLine in
+            context.coordinator.notifyVisibleLineRange(startLine: startLine, endLine: endLine)
+        }
 
         return containerView
     }
 
-    func updateNSView(_ containerView: CodeTextContainerView, context _: Context) {
+    func updateNSView(_ containerView: CodeTextContainerView, context: Context) {
         let scrollView = containerView.scrollView
         let textView = containerView.textView
 
@@ -63,11 +67,16 @@ struct CodeTextView: NSViewRepresentable {
             logLayout(phase: "update-start", textView: textView, scrollView: scrollView)
             logTextRenderingState(phase: "update-start", textView: textView)
         #endif
+        containerView.onVisibleLineRangeChange = { startLine, endLine in
+            context.coordinator.notifyVisibleLineRange(startLine: startLine, endLine: endLine)
+        }
 
         if textView.string != text {
             textView.string = text
+            applyBaseTextAttributes(to: textView)
+            context.coordinator.previousTokenRanges = []
         }
-        applySyntaxHighlight(to: textView)
+        applySyntaxHighlight(to: textView, coordinator: context.coordinator)
 
         containerView.layoutSubtreeIfNeeded()
         let contentSize = scrollView.contentView.bounds.size
@@ -121,6 +130,7 @@ struct CodeTextView: NSViewRepresentable {
         containerView.layoutSubtreeIfNeeded()
         textView.needsDisplay = true
         containerView.lineNumberView.needsDisplay = true
+        containerView.reportVisibleLineRange()
 
         #if DEBUG
             logLayout(phase: "update", textView: textView, scrollView: scrollView)
@@ -128,21 +138,41 @@ struct CodeTextView: NSViewRepresentable {
         #endif
     }
 
-    private func applySyntaxHighlight(to textView: NSTextView) {
+    private func applyBaseTextAttributes(to textView: NSTextView) {
         guard let textStorage = textView.textStorage else { return }
-
         let fullText = textView.string as NSString
         guard fullText.length > 0 else { return }
-        let fullRange = NSRange(location: 0, length: fullText.length)
+
         textStorage.beginEditing()
         textStorage.setAttributes(
             [
                 .foregroundColor: SyntaxTheme.defaultTextColor,
                 .font: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
             ],
-            range: fullRange
+            range: NSRange(location: 0, length: fullText.length)
         )
+        textStorage.endEditing()
+    }
 
+    private func applySyntaxHighlight(to textView: NSTextView, coordinator: Coordinator) {
+        guard let textStorage = textView.textStorage else { return }
+
+        let fullText = textView.string as NSString
+        guard fullText.length > 0 else {
+            coordinator.previousTokenRanges = []
+            return
+        }
+
+        textStorage.beginEditing()
+        for oldRange in coordinator.previousTokenRanges where NSMaxRange(oldRange) <= fullText.length {
+            textStorage.addAttribute(
+                .foregroundColor,
+                value: SyntaxTheme.defaultTextColor,
+                range: oldRange
+            )
+        }
+
+        var appliedRanges: [NSRange] = []
         if !tokens.isEmpty {
             let lines = textView.string.split(separator: "\n", omittingEmptySubsequences: false)
             var lineOffsets: [Int] = []
@@ -165,9 +195,11 @@ struct CodeTextView: NSViewRepresentable {
                 let range = NSRange(location: start, length: length)
                 let color = SyntaxTheme.color(for: token.tokenType)
                 textStorage.addAttribute(.foregroundColor, value: color, range: range)
+                appliedRanges.append(range)
             }
         }
 
+        coordinator.previousTokenRanges = appliedRanges
         textStorage.endEditing()
     }
 
@@ -186,6 +218,8 @@ struct CodeTextView: NSViewRepresentable {
 extension CodeTextView {
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: CodeTextView
+        var previousTokenRanges: [NSRange] = []
+        private var lastVisibleRange: ClosedRange<UInt32>?
 
         init(_ parent: CodeTextView) {
             self.parent = parent
@@ -195,6 +229,14 @@ extension CodeTextView {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
         }
+
+        func notifyVisibleLineRange(startLine: UInt32, endLine: UInt32) {
+            guard startLine <= endLine else { return }
+            let range = startLine ... endLine
+            guard range != lastVisibleRange else { return }
+            lastVisibleRange = range
+            parent.onVisibleLineRangeChange(startLine, endLine)
+        }
     }
 }
 
@@ -203,6 +245,8 @@ final class CodeTextContainerView: NSView {
     let scrollView: NSScrollView
     let textView: NSTextView
     let lineNumberView: LineNumberRulerView
+    var onVisibleLineRangeChange: ((UInt32, UInt32) -> Void)?
+    private var lastReportedVisibleRange: ClosedRange<UInt32>?
 
     init(gutterWidth: CGFloat) {
         self.gutterWidth = gutterWidth
@@ -215,6 +259,14 @@ final class CodeTextContainerView: NSView {
         lineNumberView = LineNumberRulerView(scrollView: scrollView, textView: textView)
         super.init(frame: .zero)
 
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleClipBoundsChanged),
+            name: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView
+        )
+
         addSubview(lineNumberView)
         addSubview(scrollView)
     }
@@ -222,6 +274,10 @@ final class CodeTextContainerView: NSView {
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     override func layout() {
@@ -248,6 +304,63 @@ final class CodeTextContainerView: NSView {
                     "textBounds=\(textView.bounds) container=\(textView.textContainer?.containerSize ?? .zero)"
             )
         #endif
+        reportVisibleLineRange()
+    }
+
+    @objc private func handleClipBoundsChanged() {
+        reportVisibleLineRange()
+    }
+
+    func reportVisibleLineRange() {
+        guard let range = computeVisibleLineRange() else { return }
+        if range == lastReportedVisibleRange { return }
+        lastReportedVisibleRange = range
+        onVisibleLineRangeChange?(range.lowerBound, range.upperBound)
+    }
+
+    private func computeVisibleLineRange() -> ClosedRange<UInt32>? {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer
+        else { return nil }
+
+        let clipBounds = scrollView.contentView.bounds
+        let visibleRect = NSRect(
+            x: 0,
+            y: clipBounds.origin.y - textView.textContainerOrigin.y,
+            width: max(1, textContainer.containerSize.width),
+            height: max(1, clipBounds.height)
+        )
+        let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+        let visibleCharRange = layoutManager.characterRange(
+            forGlyphRange: visibleGlyphRange,
+            actualGlyphRange: nil
+        )
+
+        let text = textView.string as NSString
+        if text.length == 0 {
+            return 1 ... 1
+        }
+
+        let startIndex = min(max(visibleCharRange.location, 0), text.length)
+        let endIndex = min(max(NSMaxRange(visibleCharRange) - 1, 0), text.length - 1)
+        let startLine = lineNumber(at: startIndex, in: text)
+        let endLine = lineNumber(at: endIndex, in: text)
+        return startLine ... max(startLine, endLine)
+    }
+
+    private func lineNumber(at index: Int, in text: NSString) -> UInt32 {
+        if text.length == 0 || index <= 0 {
+            return 1
+        }
+
+        var line = 1
+        text.enumerateSubstrings(
+            in: NSRange(location: 0, length: min(index, text.length)),
+            options: [.byLines, .substringNotRequired]
+        ) { _, _, _, _ in
+            line += 1
+        }
+        return UInt32(line)
     }
 }
 
