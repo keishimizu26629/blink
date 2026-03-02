@@ -51,12 +51,27 @@ pub struct BlameLine {
     pub commit: String,
 }
 
-/// Blame 行から参照するコミット差分
+/// Git差分（コミット差分または作業ツリー差分）
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
-pub struct BlameDiff {
+pub struct GitFileDiff {
     pub commit: String,
     pub path: String,
     pub diff_text: String,
+}
+
+/// Git status の1エントリ
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct GitStatusEntry {
+    pub path: String,
+    pub status: String,
+}
+
+/// Git status 分類結果
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct GitStatus {
+    pub staged: Vec<GitStatusEntry>,
+    pub unstaged: Vec<GitStatusEntry>,
+    pub untracked: Vec<GitStatusEntry>,
 }
 
 #[cfg(test)]
@@ -111,13 +126,35 @@ mod tests {
     }
 
     #[test]
-    fn blame_diff_creation() {
-        let diff = BlameDiff {
+    fn git_file_diff_creation() {
+        let diff = GitFileDiff {
             commit: "abc1234".into(),
             path: "/tmp/file.rs".into(),
             diff_text: "@@ -1 +1 @@\n-old\n+new\n".into(),
         };
         assert_eq!(diff.commit, "abc1234");
         assert!(diff.diff_text.contains("+new"));
+    }
+
+    #[test]
+    fn git_status_creation() {
+        let status = GitStatus {
+            staged: vec![GitStatusEntry {
+                path: "/tmp/a.swift".into(),
+                status: "M ".into(),
+            }],
+            unstaged: vec![GitStatusEntry {
+                path: "/tmp/b.swift".into(),
+                status: " M".into(),
+            }],
+            untracked: vec![GitStatusEntry {
+                path: "/tmp/c.swift".into(),
+                status: "??".into(),
+            }],
+        };
+        assert_eq!(status.staged.len(), 1);
+        assert_eq!(status.unstaged.len(), 1);
+        assert_eq!(status.untracked.len(), 1);
+        assert_eq!(status.untracked[0].status, "??");
     }
 }

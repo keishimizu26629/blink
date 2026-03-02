@@ -8,20 +8,46 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            ProjectTreeView(
-                nodes: viewModel.rootNodes,
-                selectedFileId: viewModel.selectedFile?.id,
-                onSelectFile: { node in
-                    Task {
-                        await viewModel.selectFile(node: node)
+            VStack(spacing: 0) {
+                SidebarActivityBar(
+                    selectedMode: viewModel.sidebarMode,
+                    onSelectMode: { mode in
+                        viewModel.setSidebarMode(mode)
+                    },
+                    onRefreshSourceControl: {
+                        viewModel.refreshGitStatus()
                     }
-                },
-                onToggleDir: { node in
-                    Task {
-                        await viewModel.toggleDir(node: node)
-                    }
+                )
+
+                if viewModel.sidebarMode == .explorer {
+                    ProjectTreeView(
+                        nodes: viewModel.rootNodes,
+                        selectedFileId: viewModel.selectedFile?.id,
+                        onSelectFile: { node in
+                            Task {
+                                await viewModel.selectFile(node: node)
+                            }
+                        },
+                        onToggleDir: { node in
+                            Task {
+                                await viewModel.toggleDir(node: node)
+                            }
+                        }
+                    )
+                } else {
+                    SourceControlView(
+                        status: viewModel.gitStatusResult,
+                        isLoading: viewModel.isGitStatusLoading,
+                        errorMessage: viewModel.gitStatusErrorMessage,
+                        formatPath: { path in
+                            viewModel.displayPathForSidebar(path)
+                        },
+                        onSelectPath: { path in
+                            viewModel.requestDiffForPath(path)
+                        }
+                    )
                 }
-            )
+            }
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
         } detail: {
             ZStack {
@@ -30,39 +56,25 @@ struct ContentView: View {
 
                 if let content = viewModel.fileContent {
                     VStack(spacing: 0) {
-                        if viewModel.isBlameVisible, let blameError = viewModel.blameErrorMessage, !blameError.isEmpty {
-                            Text("Blame取得失敗: \(blameError)")
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.red.opacity(0.08))
-                        }
+                        EditorDisplayModeBar(
+                            mode: viewModel.editorDisplayMode,
+                            canShowDiff: viewModel.selectedFile != nil
+                                || viewModel.selectedDiff != nil
+                                || viewModel.isDiffLoading
+                                || !(viewModel.diffErrorMessage?.isEmpty ?? true),
+                            onSelectCode: { viewModel.switchToCodeMode() },
+                            onSelectDiff: { viewModel.requestDiffForCurrentFile() }
+                        )
 
-                        HStack(spacing: 0) {
-                            if viewModel.isBlameVisible {
-                                ScrollView(.vertical, showsIndicators: false) {
-                                    BlameGutterView(
-                                        blameLines: viewModel.blameLines,
-                                        onSelectLine: { line in
-                                            Task {
-                                                await viewModel.selectBlameLine(line)
-                                            }
-                                        }
-                                    )
-                                }
-                                .frame(width: 170)
-                                .background(Color(nsColor: SyntaxTheme.backgroundColor).opacity(0.98))
-                                .overlay(
-                                    Rectangle()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                )
-                                .zIndex(1)
-
-                                Divider()
-                            }
-
+                        if viewModel.editorDisplayMode == .diff {
+                            DiffContentView(
+                                diff: viewModel.selectedDiff,
+                                isLoading: viewModel.isDiffLoading,
+                                errorMessage: viewModel.diffErrorMessage,
+                                tokens: viewModel.diffHighlightTokens
+                            )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
                             CodeTextView(
                                 text: Binding(
                                     get: { viewModel.fileContent ?? content },
@@ -75,18 +87,7 @@ struct ContentView: View {
                             )
                             .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
                             .layoutPriority(1)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                        if viewModel.isDiffPanelVisible {
-                            Divider()
-                            BlameDiffPanelView(
-                                diff: viewModel.selectedBlameDiff,
-                                isLoading: viewModel.isDiffLoading,
-                                errorMessage: viewModel.diffErrorMessage,
-                                onClose: { viewModel.closeDiffPanel() }
-                            )
-                            .frame(height: 220)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -99,22 +100,17 @@ struct ContentView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(viewModel.rootDirectoryName ?? "フォルダ未選択")
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 520, alignment: .center)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button(action: openFolder) {
                     Label("Open Folder", systemImage: "folder.badge.plus")
                 }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    viewModel.toggleBlameVisibility()
-                } label: {
-                    Label(
-                        "Blame",
-                        systemImage: viewModel.isBlameVisible ? "person.fill" : "person"
-                    )
-                }
-                .help("Git Blame の表示切替")
-                .disabled(viewModel.fileContent == nil)
             }
             ToolbarItem(placement: .automatic) {
                 HStack(spacing: 8) {
@@ -137,7 +133,10 @@ struct ContentView: View {
             }
         }
         .background(
-            WindowOpacityConfigurator(opacity: viewModel.windowOpacity)
+            WindowOpacityConfigurator(
+                opacity: viewModel.windowOpacity,
+                title: viewModel.rootDirectoryName
+            )
                 .allowsHitTesting(false)
         )
         .fileImporter(
@@ -161,6 +160,14 @@ struct ContentView: View {
             Text(viewModel.errorMessage ?? "")
         }
         .focusedSceneValue(\.projectViewModel, viewModel)
+        .overlay(alignment: .bottomLeading) {
+            BranchStatusBadge(
+                branchName: viewModel.activeBranchName,
+                hasProject: viewModel.rootDirectoryName != nil
+            )
+            .padding(.leading, 10)
+            .padding(.bottom, 8)
+        }
     }
 
     private func openFolder() {
@@ -179,70 +186,285 @@ struct ContentView: View {
     }
 }
 
+private struct SidebarActivityBar: View {
+    let selectedMode: ProjectViewModel.SidebarMode
+    let onSelectMode: (ProjectViewModel.SidebarMode) -> Void
+    let onRefreshSourceControl: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            modeButton(
+                title: "Explorer",
+                icon: "folder",
+                mode: .explorer
+            )
+            modeButton(
+                title: "Source Control",
+                icon: "arrow.triangle.branch",
+                mode: .sourceControl
+            )
+
+            Spacer(minLength: 0)
+
+            if selectedMode == .sourceControl {
+                Button {
+                    onRefreshSourceControl()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 12, height: 12)
+                }
+                .buttonStyle(.plain)
+                .help("Gitステータス再取得")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.black.opacity(0.12))
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+
+    private func modeButton(
+        title: String,
+        icon: String,
+        mode: ProjectViewModel.SidebarMode
+    ) -> some View {
+        Button {
+            onSelectMode(mode)
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 12, height: 12)
+                .padding(.horizontal, 2)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(selectedMode == mode ? Color.accentColor.opacity(0.30) : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(title)
+    }
+}
+
+private struct BranchStatusBadge: View {
+    let branchName: String?
+    let hasProject: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.green)
+            Text(labelText)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor))
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.black.opacity(0.62))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        }
+    }
+
+    private var labelText: String {
+        if let branchName, !branchName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return branchName
+        }
+        return hasProject ? "No Branch" : "No Project"
+    }
+}
+
+private struct SourceControlView: View {
+    let status: GitStatus?
+    let isLoading: Bool
+    let errorMessage: String?
+    let formatPath: (String) -> String
+    let onSelectPath: (String) -> Void
+
+    var body: some View {
+        List {
+            if isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Gitステータスを読み込み中...")
+                        .foregroundStyle(.secondary)
+                }
+            } else if let errorMessage, !errorMessage.isEmpty {
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+            } else if let status {
+                section("Staged Changes", entries: status.staged, icon: "checkmark.circle.fill", tint: .green)
+                section("Changes", entries: status.unstaged, icon: "pencil.circle.fill", tint: .orange)
+                section("Untracked Files", entries: status.untracked, icon: "questionmark.circle.fill", tint: .blue)
+
+                if status.staged.isEmpty, status.unstaged.isEmpty, status.untracked.isEmpty {
+                    Text("変更はありません。")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Source Controlを選択するとGitステータスを表示します。")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    private func section(
+        _ title: String,
+        entries: [GitStatusEntry],
+        icon: String,
+        tint: Color
+    ) -> some View {
+        Section {
+            ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                Button {
+                    onSelectPath(entry.path)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: icon)
+                            .foregroundStyle(tint)
+                        Text(formatPath(entry.path))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 0)
+                        Text(entry.status)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            Text(title)
+        }
+    }
+}
+
+private struct EditorDisplayModeBar: View {
+    let mode: ProjectViewModel.EditorDisplayMode
+    let canShowDiff: Bool
+    let onSelectCode: () -> Void
+    let onSelectDiff: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            modeButton(
+                title: "Code",
+                icon: "doc.text",
+                isSelected: mode == .code,
+                action: onSelectCode
+            )
+            modeButton(
+                title: "Diff",
+                icon: "rectangle.split.2x1",
+                isSelected: mode == .diff,
+                action: onSelectDiff
+            )
+            .disabled(!canShowDiff)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.black.opacity(0.10))
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+
+    private func modeButton(
+        title: String,
+        icon: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(title)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(isSelected ? Color.accentColor.opacity(0.30) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct WindowOpacityConfigurator: NSViewRepresentable {
     let opacity: Double
+    let title: String?
 
     func makeNSView(context _: Context) -> NSView {
         let view = NSView(frame: .zero)
         DispatchQueue.main.async {
-            applyWindowOpacity(opacity, to: view.window)
+            applyWindowChrome(opacity: opacity, title: title, to: view.window)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context _: Context) {
         DispatchQueue.main.async {
-            applyWindowOpacity(opacity, to: nsView.window)
+            applyWindowChrome(opacity: opacity, title: title, to: nsView.window)
         }
     }
 
-    private func applyWindowOpacity(_ opacity: Double, to window: NSWindow?) {
+    private func applyWindowChrome(opacity: Double, title: String?, to window: NSWindow?) {
         guard let window else { return }
         window.isOpaque = false
         window.backgroundColor = .clear
         window.alphaValue = CGFloat(opacity)
+        window.titleVisibility = .hidden
+        window.title = title ?? ""
     }
 }
 
-private struct BlameDiffPanelView: View {
-    let diff: BlameDiff?
+private struct DiffContentView: View {
+    let diff: GitFileDiff?
     let isLoading: Bool
     let errorMessage: String?
-    let onClose: () -> Void
+    let tokens: [TokenSpan]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(panelTitle)
-                    .font(.headline)
-                Spacer()
-                Button {
-                    onClose()
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-            }
-
+        VStack(alignment: .leading, spacing: 8) {
+            Text(panelTitle)
+                .font(.headline)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
             if isLoading {
                 HStack(spacing: 8) {
                     ProgressView()
                     Text("差分を取得中...")
                         .foregroundStyle(.secondary)
                 }
+                .padding(.horizontal, 12)
             } else if let errorMessage, !errorMessage.isEmpty {
                 Text(errorMessage)
                     .foregroundStyle(.red)
                     .textSelection(.enabled)
+                    .padding(.horizontal, 12)
             } else if let diff {
-                PRDiffTableView(diffText: diff.diffText)
+                PRDiffTableView(diffText: diff.diffText, tokens: tokens)
             } else {
-                Text("Blame 行を選択すると差分を表示します。")
+                Text("Diffを表示するにはファイルを選択してください。")
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: SyntaxTheme.backgroundColor))
     }
 
@@ -293,11 +515,13 @@ private struct PRDiffTableView: View {
     )
 
     private let rows: [Row]
+    private let tokensByLine: [Int: [TokenSpan]]
     private let lineColumnWidth: CGFloat = 56
     private let minContentWidth: CGFloat = 1100
 
-    init(diffText: String) {
+    init(diffText: String, tokens: [TokenSpan]) {
         rows = Self.parse(diffText: diffText)
+        tokensByLine = Self.groupTokensByLine(tokens)
     }
 
     var body: some View {
@@ -369,7 +593,6 @@ private struct PRDiffTableView: View {
             }
             .frame(minWidth: minContentWidth, alignment: .leading)
             .font(.system(size: 11, design: .monospaced))
-            .foregroundStyle(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.96))
         }
     }
 
@@ -386,15 +609,53 @@ private struct PRDiffTableView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
 
-            Text(text)
+            highlightedText(text, line: line)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
-                .lineLimit(1)
-                .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(background)
+    }
+
+    private func highlightedText(_ text: String, line: Int?) -> Text {
+        guard let line,
+              let lineTokens = tokensByLine[line],
+              !lineTokens.isEmpty,
+              !text.isEmpty
+        else {
+            return Text(verbatim: text)
+                .foregroundColor(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.96))
+        }
+
+        let nsText = text as NSString
+        let length = nsText.length
+        if length == 0 {
+            return Text("")
+        }
+
+        var cursor = 0
+        var rendered = Text("")
+        for token in lineTokens {
+            let start = min(max(Int(token.startCol), 0), length)
+            let end = min(max(Int(token.endCol), start), length)
+            if cursor < start {
+                rendered = rendered + Text(verbatim: nsText.substring(with: NSRange(location: cursor, length: start - cursor)))
+                    .foregroundColor(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.96))
+            }
+            if start < end {
+                rendered = rendered + Text(verbatim: nsText.substring(with: NSRange(location: start, length: end - start)))
+                    .foregroundColor(Color(nsColor: SyntaxTheme.color(for: token.tokenType)))
+            }
+            cursor = max(cursor, end)
+        }
+
+        if cursor < length {
+            rendered = rendered + Text(verbatim: nsText.substring(with: NSRange(location: cursor, length: length - cursor)))
+                .foregroundColor(Color(nsColor: SyntaxTheme.defaultTextColor).opacity(0.96))
+        }
+
+        return rendered
     }
 
     private func metaForegroundColor(for kind: RowKind) -> Color {
@@ -434,6 +695,23 @@ private struct PRDiffTableView: View {
         let lines = diffText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         let rawLines = parseRaw(lines: lines)
         return convertRawToRows(rawLines)
+    }
+
+    private static func groupTokensByLine(_ tokens: [TokenSpan]) -> [Int: [TokenSpan]] {
+        var grouped: [Int: [TokenSpan]] = [:]
+        for token in tokens {
+            let key = Int(token.line)
+            grouped[key, default: []].append(token)
+        }
+        for (line, lineTokens) in grouped {
+            grouped[line] = lineTokens.sorted { lhs, rhs in
+                if lhs.startCol == rhs.startCol {
+                    return lhs.endCol < rhs.endCol
+                }
+                return lhs.startCol < rhs.startCol
+            }
+        }
+        return grouped
     }
 
     private static func parseRaw(lines: [String]) -> [RawLine] {

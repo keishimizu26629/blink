@@ -2,6 +2,16 @@ import Foundation
 
 @MainActor
 final class ProjectViewModel: ObservableObject {
+    enum SidebarMode {
+        case explorer
+        case sourceControl
+    }
+
+    enum EditorDisplayMode {
+        case code
+        case diff
+    }
+
     private enum SettingsKeys {
         static let windowOpacity = "blink.window.opacity"
         static let legacyEditorOpacity = "blink.editor.opacity"
@@ -10,15 +20,19 @@ final class ProjectViewModel: ObservableObject {
     @Published var rootNodes: [TreeNode] = []
     @Published var selectedFile: TreeNode?
     @Published var fileContent: String?
-    @Published var isBlameVisible: Bool = false
-    @Published var blameLines: [BlameLine] = []
     @Published var highlightTokens: [TokenSpan] = []
-    @Published var selectedBlameDiff: BlameDiff?
-    @Published var isDiffPanelVisible: Bool = false
+    @Published var diffHighlightTokens: [TokenSpan] = []
+    @Published var selectedDiff: GitFileDiff?
     @Published var isDiffLoading: Bool = false
     @Published var diffErrorMessage: String?
-    @Published var blameErrorMessage: String?
+    @Published var editorDisplayMode: EditorDisplayMode = .code
+    @Published var sidebarMode: SidebarMode = .explorer
+    @Published var gitStatusResult: GitStatus?
+    @Published var isGitStatusLoading: Bool = false
+    @Published var gitStatusErrorMessage: String?
+    @Published var activeBranchName: String?
     @Published var errorMessage: String?
+    @Published var rootDirectoryName: String?
     @Published var windowOpacity: Double
 
     private var rootPath: String = ""
@@ -45,58 +59,62 @@ final class ProjectViewModel: ObservableObject {
         UserDefaults.standard.set(clampedValue, forKey: SettingsKeys.windowOpacity)
     }
 
-    /// Security-scoped URL からプロジェクトを開く
     func openProject(url: URL) async {
         updateSecurityScope(for: url)
         await openProject(path: url.path)
     }
 
-    /// プロジェクトを開く
     func openProject(path: String) async {
         rootPath = path
-        NSLog("[ProjectViewModel:openProject] rootPath=%@", path)
+        rootDirectoryName = displayRootDirectoryName(from: path)
         visibleRangeFetchTask?.cancel()
         do {
             _ = try Blink.openProject(rootPath: path)
             let fileNodes = try listDir(rootPath: path, dirPath: path)
-            NSLog("[ProjectViewModel:openProject:success] rootPath=%@ entries=%ld", path, fileNodes.count)
             rootNodes = fileNodes.map { TreeNode(node: $0) }
             selectedFile = nil
             fileContent = nil
             highlightTokens = []
-            blameLines = []
-            selectedBlameDiff = nil
-            isDiffPanelVisible = false
+            diffHighlightTokens = []
+            selectedDiff = nil
             isDiffLoading = false
             diffErrorMessage = nil
-            blameErrorMessage = nil
+            editorDisplayMode = .code
+            gitStatusResult = nil
+            isGitStatusLoading = false
+            gitStatusErrorMessage = nil
             currentVisibleRange = nil
             totalLineCount = 0
             errorMessage = nil
+            activeBranchName = nil
+            refreshActiveBranch()
+            if sidebarMode == .sourceControl {
+                refreshGitStatus()
+            }
         } catch {
-            print("Failed to open project: \(error)")
-            NSLog("[ProjectViewModel:openProject:error] rootPath=%@ error=%@", path, error.localizedDescription)
             rootNodes = []
             selectedFile = nil
             fileContent = nil
             highlightTokens = []
-            blameLines = []
-            selectedBlameDiff = nil
-            isDiffPanelVisible = false
+            diffHighlightTokens = []
+            selectedDiff = nil
             isDiffLoading = false
             diffErrorMessage = nil
-            blameErrorMessage = nil
+            editorDisplayMode = .code
+            gitStatusResult = nil
+            isGitStatusLoading = false
+            gitStatusErrorMessage = nil
             currentVisibleRange = nil
             totalLineCount = 0
+            activeBranchName = nil
+            rootDirectoryName = nil
             errorMessage = "フォルダを開けませんでした: \(error.localizedDescription)"
         }
     }
 
-    /// ファイルを選択して内容を読み込む
     func selectFile(node: TreeNode) async {
         guard node.kind == .file else { return }
         selectedFile = node
-        NSLog("[ProjectViewModel:selectFile:start] path=%@", node.path)
 
         do {
             let content = try readFile(path: node.path)
@@ -105,52 +123,157 @@ final class ProjectViewModel: ObservableObject {
             visibleRangeFetchTask?.cancel()
             currentVisibleRange = nil
             highlightTokens = []
-            blameLines = []
-            blameErrorMessage = nil
+            diffHighlightTokens = []
             closeDiffPanel()
 
             let initialEndLine = min(totalLineCount, 220)
             if initialEndLine >= 1 {
                 updateVisibleRange(startLine: 1, endLine: initialEndLine)
             }
-            NSLog("[ProjectViewModel:selectFile:success] path=%@ totalLines=%u", node.path, totalLineCount)
+            refreshDiffHighlightTokens(path: node.path, totalLines: totalLineCount)
         } catch {
-            print("Failed to read file: \(error)")
             fileContent = nil
             highlightTokens = []
-            blameLines = []
-            blameErrorMessage = nil
-            selectedBlameDiff = nil
-            isDiffPanelVisible = false
+            diffHighlightTokens = []
+            selectedDiff = nil
             isDiffLoading = false
             diffErrorMessage = nil
+            editorDisplayMode = .code
             currentVisibleRange = nil
             totalLineCount = 0
         }
     }
 
-    /// ディレクトリの展開/折りたたみ
+    func selectFile(path: String) async {
+        guard !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        if let existing = findFileNode(in: rootNodes, path: path) {
+            await selectFile(node: existing)
+            return
+        }
+
+        let fallbackNode = TreeNode(
+            node: FileNode(
+                id: "git:\(path)",
+                path: path,
+                name: (path as NSString).lastPathComponent,
+                kind: .file
+            )
+        )
+        await selectFile(node: fallbackNode)
+    }
+
     func toggleDir(node: TreeNode) async {
         guard node.kind == .dir else { return }
         rootNodes = toggleNodeInTree(nodes: rootNodes, targetId: node.id)
     }
 
-    func toggleBlameVisibility() {
-        isBlameVisible.toggle()
-        NSLog(
-            "[ProjectViewModel:toggleBlameVisibility] visible=%@ selectedFile=%@ currentBlameLines=%ld",
-            isBlameVisible ? "true" : "false",
-            selectedFile?.path ?? "nil",
-            blameLines.count
-        )
-        if isBlameVisible {
-            if let visible = currentVisibleRange {
-                fetchVisibleRangeIfNeeded(visible, forceRefresh: true)
+    func setSidebarMode(_ mode: SidebarMode) {
+        if sidebarMode == mode {
+            if mode == .sourceControl {
+                refreshGitStatus()
             }
-        } else {
-            blameLines = []
-            blameErrorMessage = nil
+            return
         }
+        sidebarMode = mode
+        if mode == .sourceControl {
+            refreshGitStatus()
+        }
+    }
+
+    func refreshGitStatus() {
+        guard !rootPath.isEmpty else {
+            gitStatusResult = nil
+            gitStatusErrorMessage = "プロジェクトを開いてからGitステータスを表示してください。"
+            activeBranchName = nil
+            return
+        }
+        isGitStatusLoading = true
+        gitStatusErrorMessage = nil
+        refreshActiveBranch()
+
+        let currentRootPath = rootPath
+        Task { [weak self] in
+            guard let self else { return }
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try gitStatus(rootPath: currentRootPath) }
+            }.value
+
+            guard currentRootPath == rootPath else { return }
+            switch result {
+            case let .success(status):
+                gitStatusResult = filterGitStatus(status, rootPath: currentRootPath)
+                gitStatusErrorMessage = nil
+            case let .failure(error):
+                gitStatusResult = nil
+                gitStatusErrorMessage = "Gitステータス取得に失敗しました: \(error.localizedDescription)"
+            }
+            isGitStatusLoading = false
+        }
+    }
+
+    func refreshActiveBranch() {
+        guard !rootPath.isEmpty else {
+            activeBranchName = nil
+            return
+        }
+
+        let currentRootPath = rootPath
+        Task { [weak self] in
+            guard let self else { return }
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try gitCurrentBranch(rootPath: currentRootPath) }
+            }.value
+
+            guard currentRootPath == rootPath else { return }
+            switch result {
+            case let .success(branch):
+                let trimmed = branch.trimmingCharacters(in: .whitespacesAndNewlines)
+                activeBranchName = trimmed.isEmpty ? nil : trimmed
+            case .failure:
+                activeBranchName = nil
+            }
+        }
+    }
+
+    func displayPathForSidebar(_ absolutePath: String) -> String {
+        guard !rootPath.isEmpty else { return absolutePath }
+        let normalizedRoot = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        if absolutePath.hasPrefix(normalizedRoot) {
+            return String(absolutePath.dropFirst(normalizedRoot.count))
+        }
+        return absolutePath
+    }
+
+    func switchToCodeMode() {
+        editorDisplayMode = .code
+    }
+
+    func requestDiffForCurrentFile() {
+        guard let path = selectedFile?.path else {
+            diffErrorMessage = "Diffを表示するファイルを選択してください。"
+            editorDisplayMode = .diff
+            return
+        }
+        Task {
+            await loadDiff(for: path)
+            editorDisplayMode = .diff
+        }
+    }
+
+    func requestDiffForPath(_ path: String) {
+        Task {
+            await selectFile(path: path)
+            await loadDiff(for: path)
+            editorDisplayMode = .diff
+        }
+    }
+
+    func closeDiffPanel() {
+        editorDisplayMode = .code
+        isDiffLoading = false
+        diffErrorMessage = nil
+        selectedDiff = nil
     }
 
     func updateVisibleRange(startLine: UInt32, endLine: UInt32) {
@@ -174,58 +297,46 @@ final class ProjectViewModel: ObservableObject {
         fetchVisibleRangeIfNeeded(targetRange, forceRefresh: false)
     }
 
-    func closeDiffPanel() {
-        isDiffPanelVisible = false
-        isDiffLoading = false
-        diffErrorMessage = nil
-        selectedBlameDiff = nil
-    }
-
-    func selectBlameLine(_ line: BlameLine) async {
-        guard let selectedFile else { return }
-        let filePath = selectedFile.path
-
-        NSLog(
-            "[ProjectViewModel:selectBlameLine:start] line=%u commit=%@ path=%@",
-            line.line,
-            line.commit,
-            filePath
-        )
-        isDiffPanelVisible = true
+    private func loadDiff(for path: String) async {
         isDiffLoading = true
         diffErrorMessage = nil
+        selectedDiff = nil
 
         let result = await Task.detached(priority: .userInitiated) {
-            Result { try blameCommitDiff(path: filePath, commit: line.commit) }
+            Result { try gitFileDiff(path: path) }
         }.value
 
-        guard selectedFile.path == filePath else {
-            NSLog("[ProjectViewModel:selectBlameLine:cancelled] reason=selected-file-changed")
+        guard selectedFile?.path == path else {
             isDiffLoading = false
             return
         }
 
         switch result {
         case let .success(diff):
-            selectedBlameDiff = diff
-            NSLog(
-                "[ProjectViewModel:selectBlameLine:success] commit=%@ diffLength=%ld",
-                diff.commit,
-                diff.diffText.count
-            )
+            selectedDiff = diff
+            diffErrorMessage = nil
         case let .failure(error):
-            selectedBlameDiff = nil
+            selectedDiff = nil
             diffErrorMessage = "差分取得に失敗しました: \(error.localizedDescription)"
-            NSLog(
-                "[ProjectViewModel:selectBlameLine:error] commit=%@ error=%@",
-                line.commit,
-                error.localizedDescription
-            )
         }
         isDiffLoading = false
     }
 
-    // MARK: - Tree Update
+    private func refreshDiffHighlightTokens(path: String, totalLines: UInt32) {
+        guard totalLines > 0 else {
+            diffHighlightTokens = []
+            return
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            let currentPath = path
+            let tokens = await Task.detached(priority: .userInitiated) {
+                (try? highlightRange(path: currentPath, startLine: 1, endLine: totalLines)) ?? []
+            }.value
+            guard selectedFile?.path == currentPath else { return }
+            diffHighlightTokens = tokens
+        }
+    }
 
     private func toggleNodeInTree(nodes: [TreeNode], targetId: String) -> [TreeNode] {
         nodes.map { treeNode in
@@ -237,7 +348,6 @@ final class ProjectViewModel: ObservableObject {
                         let fileNodes = try listDir(rootPath: rootPath, dirPath: treeNode.path)
                         updated.children = fileNodes.map { TreeNode(node: $0) }
                     } catch {
-                        print("Failed to list dir: \(error)")
                         updated.children = []
                     }
                 }
@@ -278,69 +388,50 @@ final class ProjectViewModel: ObservableObject {
         currentVisibleRange = range
         visibleRangeFetchTask?.cancel()
 
-        let shouldFetchBlame = isBlameVisible
-        NSLog(
-            "[ProjectViewModel:fetchVisibleRange:start] path=%@ range=%u-%u force=%@ fetchBlame=%@",
-            path,
-            range.lowerBound,
-            range.upperBound,
-            forceRefresh ? "true" : "false",
-            shouldFetchBlame ? "true" : "false"
-        )
         visibleRangeFetchTask = Task { [weak self] in
             guard let self else { return }
             let startLine = range.lowerBound
             let endLine = range.upperBound
 
-            let fetched = await Task.detached(priority: .userInitiated) {
-                let tokens = (try? highlightRange(
-                    path: path,
-                    startLine: startLine,
-                    endLine: endLine
-                )) ?? []
-                if shouldFetchBlame {
-                    do {
-                        let blame = try blameRange(
-                            path: path,
-                            startLine: startLine,
-                            endLine: endLine
-                        )
-                        return (tokens, blame, nil as String?)
-                    } catch {
-                        return (tokens, [] as [BlameLine], error.localizedDescription)
-                    }
-                }
-                return (tokens, [] as [BlameLine], nil as String?)
+            let tokens = await Task.detached(priority: .userInitiated) {
+                (try? highlightRange(path: path, startLine: startLine, endLine: endLine)) ?? []
             }.value
 
             guard !Task.isCancelled, selectedFile?.path == path else { return }
-            highlightTokens = fetched.0
-            blameLines = fetched.1
-            blameErrorMessage = fetched.2
-            NSLog(
-                "[ProjectViewModel:fetchVisibleRange:done] path=%@ range=%u-%u highlightTokens=%ld blameLines=%ld",
-                path,
-                startLine,
-                endLine,
-                fetched.0.count,
-                fetched.1.count
-            )
+            highlightTokens = tokens
+        }
+    }
 
-            if shouldFetchBlame,
-               fetched.2 == nil,
-               selectedBlameDiff == nil,
-               !isDiffLoading,
-               let firstLine = fetched.1.first
+    private func findFileNode(in nodes: [TreeNode], path: String) -> TreeNode? {
+        for node in nodes {
+            if node.kind == .file, node.path == path {
+                return node
+            }
+            if let children = node.children,
+               let found = findFileNode(in: children, path: path)
             {
-                NSLog(
-                    "[ProjectViewModel:fetchVisibleRange:autoSelect] line=%u commit=%@",
-                    firstLine.line,
-                    firstLine.commit
-                )
-                Task { [weak self] in
-                    await self?.selectBlameLine(firstLine)
-                }
+                return found
             }
         }
+        return nil
+    }
+
+    private func filterGitStatus(_ status: GitStatus, rootPath: String) -> GitStatus {
+        let normalizedRoot = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        let inRoot: (GitStatusEntry) -> Bool = { entry in
+            entry.path == rootPath || entry.path.hasPrefix(normalizedRoot)
+        }
+        return GitStatus(
+            staged: status.staged.filter(inRoot),
+            unstaged: status.unstaged.filter(inRoot),
+            untracked: status.untracked.filter(inRoot)
+        )
+    }
+
+    private func displayRootDirectoryName(from path: String) -> String {
+        let normalizedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedPath.isEmpty else { return "" }
+        let lastComponent = (normalizedPath as NSString).lastPathComponent
+        return lastComponent.isEmpty ? normalizedPath : lastComponent
     }
 }

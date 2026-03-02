@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use core_types::{BlameDiff, BlameLine, FileNode, TokenSpan};
+use core_types::{BlameLine, FileNode, GitFileDiff, GitStatus, TokenSpan};
 
 uniffi::setup_scaffolding!();
 
@@ -73,7 +73,7 @@ pub fn highlight_range(
 }
 
 /// Git Blame: 指定範囲の行に対する blame 情報を返す
-/// 非Gitリポジトリの場合は空Vecを返す（エラーにしない）
+/// 取得不能時は理由付きエラーを返す
 #[uniffi::export]
 pub fn blame_range(
     path: String,
@@ -106,8 +106,26 @@ pub fn blame_range(
 
 /// Blame 行で選択したコミットの差分を返す
 #[uniffi::export]
-pub fn blame_commit_diff(path: String, commit: String) -> Result<BlameDiff, CoreError> {
+pub fn blame_commit_diff(path: String, commit: String) -> Result<GitFileDiff, CoreError> {
     core_git::blame_commit_diff(&path, &commit).map_err(core_error)
+}
+
+/// 対象ファイルの現在差分（staged/unstaged/untracked）を返す
+#[uniffi::export]
+pub fn git_file_diff(path: String) -> Result<GitFileDiff, CoreError> {
+    core_git::git_file_diff(&path).map_err(core_error)
+}
+
+/// リポジトリの変更状態（staged / unstaged / untracked）を返す
+#[uniffi::export]
+pub fn git_status(root_path: String) -> Result<GitStatus, CoreError> {
+    core_git::git_status(&root_path).map_err(core_error)
+}
+
+/// 現在のブランチ名を返す
+#[uniffi::export]
+pub fn git_current_branch(root_path: String) -> Result<String, CoreError> {
+    core_git::git_current_branch(&root_path).map_err(core_error)
 }
 
 #[cfg(test)]
@@ -245,6 +263,24 @@ mod tests {
     #[test]
     fn blame_commit_diff_invalid_commit_returns_error() {
         let result = blame_commit_diff(file!().to_string(), "invalid-commit".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn git_file_diff_non_git_returns_error() {
+        let result = git_file_diff("/tmp/nonexistent_file_for_blink_diff.swift".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn git_status_non_git_returns_error() {
+        let result = git_status("/tmp/nonexistent_root_for_blink".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn git_current_branch_non_git_returns_error() {
+        let result = git_current_branch("/tmp/nonexistent_root_for_blink".to_string());
         assert!(result.is_err());
     }
 }
