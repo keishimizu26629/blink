@@ -1,5 +1,25 @@
 import Foundation
 
+enum BringToFrontShortcut: String, CaseIterable {
+    case shiftOptionSpace
+    case commandShiftSpace
+    case commandOptionSpace
+    case controlOptionSpace
+
+    var displayName: String {
+        switch self {
+        case .shiftOptionSpace:
+            "Shift + Option + Space"
+        case .commandShiftSpace:
+            "Command + Shift + Space"
+        case .commandOptionSpace:
+            "Command + Option + Space"
+        case .controlOptionSpace:
+            "Control + Option + Space"
+        }
+    }
+}
+
 @MainActor
 final class ProjectViewModel: ObservableObject {
     enum SidebarMode {
@@ -15,7 +35,13 @@ final class ProjectViewModel: ObservableObject {
     private enum SettingsKeys {
         static let windowOpacity = "blink.window.opacity"
         static let legacyEditorOpacity = "blink.editor.opacity"
+        static let bringToFrontHotkeyEnabled = "blink.window.bringToFront.hotkey.enabled"
+        static let bringToFrontHotkeyShortcut = "blink.window.bringToFront.hotkey.shortcut"
     }
+
+    static let bringToFrontSettingsDidChangeNotification = Notification.Name(
+        "blink.window.bringToFront.settingsDidChange"
+    )
 
     @Published var rootNodes: [TreeNode] = []
     @Published var selectedFile: TreeNode?
@@ -34,6 +60,8 @@ final class ProjectViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var rootDirectoryName: String?
     @Published var windowOpacity: Double
+    @Published var isBringToFrontHotkeyEnabled: Bool
+    @Published var bringToFrontShortcut: BringToFrontShortcut
 
     private var rootPath: String = ""
     private var securityScopedDirectoryURL: URL?
@@ -48,6 +76,16 @@ final class ProjectViewModel: ObservableObject {
             ?? (defaults.object(forKey: SettingsKeys.legacyEditorOpacity) as? Double)
             ?? 1.0
         windowOpacity = Self.clampOpacity(savedOpacity)
+
+        let savedShortcut = defaults.string(forKey: SettingsKeys.bringToFrontHotkeyShortcut)
+        bringToFrontShortcut = BringToFrontShortcut(rawValue: savedShortcut ?? "")
+            ?? .shiftOptionSpace
+
+        if defaults.object(forKey: SettingsKeys.bringToFrontHotkeyEnabled) == nil {
+            isBringToFrontHotkeyEnabled = true
+        } else {
+            isBringToFrontHotkeyEnabled = defaults.bool(forKey: SettingsKeys.bringToFrontHotkeyEnabled)
+        }
     }
 
     func updateWindowOpacity(_ value: Double) {
@@ -57,6 +95,28 @@ final class ProjectViewModel: ObservableObject {
         }
         windowOpacity = clampedValue
         UserDefaults.standard.set(clampedValue, forKey: SettingsKeys.windowOpacity)
+    }
+
+    func updateBringToFrontHotkeyEnabled(_ value: Bool) {
+        if isBringToFrontHotkeyEnabled == value {
+            return
+        }
+        isBringToFrontHotkeyEnabled = value
+        UserDefaults.standard.set(value, forKey: SettingsKeys.bringToFrontHotkeyEnabled)
+        notifyBringToFrontSettingsDidChange()
+    }
+
+    func toggleBringToFrontHotkeyEnabled() {
+        updateBringToFrontHotkeyEnabled(!isBringToFrontHotkeyEnabled)
+    }
+
+    func updateBringToFrontShortcut(_ shortcut: BringToFrontShortcut) {
+        if bringToFrontShortcut == shortcut {
+            return
+        }
+        bringToFrontShortcut = shortcut
+        UserDefaults.standard.set(shortcut.rawValue, forKey: SettingsKeys.bringToFrontHotkeyShortcut)
+        notifyBringToFrontSettingsDidChange()
     }
 
     func openProject(url: URL) async {
@@ -377,6 +437,10 @@ final class ProjectViewModel: ObservableObject {
 
     private static func clampOpacity(_ value: Double) -> Double {
         min(max(value, 0.6), 1.0)
+    }
+
+    private func notifyBringToFrontSettingsDidChange() {
+        NotificationCenter.default.post(name: Self.bringToFrontSettingsDidChangeNotification, object: nil)
     }
 
     private func fetchVisibleRangeIfNeeded(_ range: ClosedRange<UInt32>, forceRefresh: Bool) {
