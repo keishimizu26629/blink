@@ -5,10 +5,10 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart_api.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 305755378;
+  int get rustContentHash => 1681799838;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -75,77 +75,37 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<GitFileDiff> crateBlameCommitDiff({
+  Future<DartGitFileDiff> crateDartApiBlameCommitDiff({
     required String path,
     required String commit,
   });
 
-  Future<List<BlameLine>> crateBlameRange({
+  Future<List<DartBlameLine>> crateDartApiBlameRange({
     required String path,
     required int startLine,
     required int endLine,
   });
 
-  Future<String> crateGitCurrentBranch({required String rootPath});
+  Future<String> crateDartApiGitCurrentBranch({required String rootPath});
 
-  Future<GitFileDiff> crateGitFileDiff({required String path});
+  Future<DartGitFileDiff> crateDartApiGitFileDiff({required String path});
 
-  Future<GitStatus> crateGitStatus({required String rootPath});
+  Future<DartGitStatus> crateDartApiGitStatus({required String rootPath});
 
-  Future<List<TokenSpan>> crateHighlightRange({
+  Future<List<DartTokenSpan>> crateDartApiHighlightRange({
     required String path,
     required int startLine,
     required int endLine,
   });
 
-  Future<List<FileNode>> crateListDir({
+  Future<List<DartFileNode>> crateDartApiListDir({
     required String rootPath,
     required String dirPath,
   });
 
-  Future<String> crateOpenProject({required String rootPath});
+  Future<String> crateDartApiOpenProject({required String rootPath});
 
-  Future<String> crateReadFile({required String path});
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_BlameLine;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_BlameLine;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_BlameLinePtr;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_FileNode;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_FileNode;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_FileNodePtr;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_GitFileDiff;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_GitFileDiff;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_GitFileDiffPtr;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_GitStatus;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_GitStatus;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_GitStatusPtr;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_TokenSpan;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_TokenSpan;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_TokenSpanPtr;
+  Future<String> crateDartApiReadFile({required String path});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -157,7 +117,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<GitFileDiff> crateBlameCommitDiff({
+  Future<DartGitFileDiff> crateDartApiBlameCommitDiff({
     required String path,
     required String commit,
   }) {
@@ -175,24 +135,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff,
-          decodeErrorData: sse_decode_core_error,
+          decodeSuccessData: sse_decode_dart_git_file_diff,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateBlameCommitDiffConstMeta,
+        constMeta: kCrateDartApiBlameCommitDiffConstMeta,
         argValues: [path, commit],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateBlameCommitDiffConstMeta => const TaskConstMeta(
-    debugName: "blame_commit_diff",
-    argNames: ["path", "commit"],
-  );
+  TaskConstMeta get kCrateDartApiBlameCommitDiffConstMeta =>
+      const TaskConstMeta(
+        debugName: "blame_commit_diff",
+        argNames: ["path", "commit"],
+      );
 
   @override
-  Future<List<BlameLine>> crateBlameRange({
+  Future<List<DartBlameLine>> crateDartApiBlameRange({
     required String path,
     required int startLine,
     required int endLine,
@@ -212,24 +172,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine,
-          decodeErrorData: sse_decode_core_error,
+          decodeSuccessData: sse_decode_list_dart_blame_line,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateBlameRangeConstMeta,
+        constMeta: kCrateDartApiBlameRangeConstMeta,
         argValues: [path, startLine, endLine],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateBlameRangeConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateDartApiBlameRangeConstMeta => const TaskConstMeta(
     debugName: "blame_range",
     argNames: ["path", "startLine", "endLine"],
   );
 
   @override
-  Future<String> crateGitCurrentBranch({required String rootPath}) {
+  Future<String> crateDartApiGitCurrentBranch({required String rootPath}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -244,22 +203,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_core_error,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateGitCurrentBranchConstMeta,
+        constMeta: kCrateDartApiGitCurrentBranchConstMeta,
         argValues: [rootPath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateGitCurrentBranchConstMeta => const TaskConstMeta(
-    debugName: "git_current_branch",
-    argNames: ["rootPath"],
-  );
+  TaskConstMeta get kCrateDartApiGitCurrentBranchConstMeta =>
+      const TaskConstMeta(
+        debugName: "git_current_branch",
+        argNames: ["rootPath"],
+      );
 
   @override
-  Future<GitFileDiff> crateGitFileDiff({required String path}) {
+  Future<DartGitFileDiff> crateDartApiGitFileDiff({required String path}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -273,22 +233,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff,
-          decodeErrorData: sse_decode_core_error,
+          decodeSuccessData: sse_decode_dart_git_file_diff,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateGitFileDiffConstMeta,
+        constMeta: kCrateDartApiGitFileDiffConstMeta,
         argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateGitFileDiffConstMeta =>
+  TaskConstMeta get kCrateDartApiGitFileDiffConstMeta =>
       const TaskConstMeta(debugName: "git_file_diff", argNames: ["path"]);
 
   @override
-  Future<GitStatus> crateGitStatus({required String rootPath}) {
+  Future<DartGitStatus> crateDartApiGitStatus({required String rootPath}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -302,22 +261,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus,
-          decodeErrorData: sse_decode_core_error,
+          decodeSuccessData: sse_decode_dart_git_status,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateGitStatusConstMeta,
+        constMeta: kCrateDartApiGitStatusConstMeta,
         argValues: [rootPath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateGitStatusConstMeta =>
+  TaskConstMeta get kCrateDartApiGitStatusConstMeta =>
       const TaskConstMeta(debugName: "git_status", argNames: ["rootPath"]);
 
   @override
-  Future<List<TokenSpan>> crateHighlightRange({
+  Future<List<DartTokenSpan>> crateDartApiHighlightRange({
     required String path,
     required int startLine,
     required int endLine,
@@ -337,24 +295,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan,
-          decodeErrorData: sse_decode_core_error,
+          decodeSuccessData: sse_decode_list_dart_token_span,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateHighlightRangeConstMeta,
+        constMeta: kCrateDartApiHighlightRangeConstMeta,
         argValues: [path, startLine, endLine],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateHighlightRangeConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateDartApiHighlightRangeConstMeta => const TaskConstMeta(
     debugName: "highlight_range",
     argNames: ["path", "startLine", "endLine"],
   );
 
   @override
-  Future<List<FileNode>> crateListDir({
+  Future<List<DartFileNode>> crateDartApiListDir({
     required String rootPath,
     required String dirPath,
   }) {
@@ -372,24 +329,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode,
-          decodeErrorData: sse_decode_core_error,
+          decodeSuccessData: sse_decode_list_dart_file_node,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateListDirConstMeta,
+        constMeta: kCrateDartApiListDirConstMeta,
         argValues: [rootPath, dirPath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateListDirConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateDartApiListDirConstMeta => const TaskConstMeta(
     debugName: "list_dir",
     argNames: ["rootPath", "dirPath"],
   );
 
   @override
-  Future<String> crateOpenProject({required String rootPath}) {
+  Future<String> crateDartApiOpenProject({required String rootPath}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -404,20 +360,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_core_error,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateOpenProjectConstMeta,
+        constMeta: kCrateDartApiOpenProjectConstMeta,
         argValues: [rootPath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateOpenProjectConstMeta =>
+  TaskConstMeta get kCrateDartApiOpenProjectConstMeta =>
       const TaskConstMeta(debugName: "open_project", argNames: ["rootPath"]);
 
   @override
-  Future<String> crateReadFile({required String path}) {
+  Future<String> crateDartApiReadFile({required String path}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -432,147 +388,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_core_error,
+          decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateReadFileConstMeta,
+        constMeta: kCrateDartApiReadFileConstMeta,
         argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateReadFileConstMeta =>
+  TaskConstMeta get kCrateDartApiReadFileConstMeta =>
       const TaskConstMeta(debugName: "read_file", argNames: ["path"]);
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_BlameLine => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_BlameLine => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_FileNode => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_FileNode => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_GitFileDiff => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_GitFileDiff => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_GitStatus => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_GitStatus => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_TokenSpan => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_TokenSpan => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan;
-
-  @protected
-  BlameLine
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return BlameLineImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  FileNode
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return FileNodeImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  GitFileDiff
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GitFileDiffImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  GitStatus
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GitStatusImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  TokenSpan
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return TokenSpanImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  BlameLine
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return BlameLineImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  FileNode
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return FileNodeImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  GitFileDiff
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GitFileDiffImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  GitStatus
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GitStatusImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  TokenSpan
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return TokenSpanImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
 
   @protected
   String dco_decode_String(dynamic raw) {
@@ -581,53 +407,122 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  CoreError dco_decode_core_error(dynamic raw) {
+  bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    switch (raw[0]) {
-      case 0:
-        return CoreError_Message(reason: dco_decode_String(raw[1]));
-      default:
-        throw Exception("unreachable");
-    }
+    return raw as bool;
   }
 
   @protected
-  List<BlameLine>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    dynamic raw,
-  ) {
+  DartBlameLine dco_decode_dart_blame_line(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DartBlameLine(
+      line: dco_decode_u_32(arr[0]),
+      author: dco_decode_String(arr[1]),
+      authorTime: dco_decode_i_64(arr[2]),
+      summary: dco_decode_String(arr[3]),
+      commit: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  DartFileNode dco_decode_dart_file_node(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DartFileNode(
+      id: dco_decode_String(arr[0]),
+      path: dco_decode_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      isDir: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  DartGitFileDiff dco_decode_dart_git_file_diff(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DartGitFileDiff(
+      commit: dco_decode_String(arr[0]),
+      path: dco_decode_String(arr[1]),
+      diffText: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  DartGitStatus dco_decode_dart_git_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DartGitStatus(
+      staged: dco_decode_list_dart_git_status_entry(arr[0]),
+      unstaged: dco_decode_list_dart_git_status_entry(arr[1]),
+      untracked: dco_decode_list_dart_git_status_entry(arr[2]),
+    );
+  }
+
+  @protected
+  DartGitStatusEntry dco_decode_dart_git_status_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DartGitStatusEntry(
+      path: dco_decode_String(arr[0]),
+      status: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  DartTokenSpan dco_decode_dart_token_span(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DartTokenSpan(
+      line: dco_decode_u_32(arr[0]),
+      startCol: dco_decode_u_32(arr[1]),
+      endCol: dco_decode_u_32(arr[2]),
+      tokenType: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
+  }
+
+  @protected
+  List<DartBlameLine> dco_decode_list_dart_blame_line(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_dart_blame_line).toList();
+  }
+
+  @protected
+  List<DartFileNode> dco_decode_list_dart_file_node(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_dart_file_node).toList();
+  }
+
+  @protected
+  List<DartGitStatusEntry> dco_decode_list_dart_git_status_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
-        .map(
-          dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine,
-        )
+        .map(dco_decode_dart_git_status_entry)
         .toList();
   }
 
   @protected
-  List<FileNode>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    dynamic raw,
-  ) {
+  List<DartTokenSpan> dco_decode_list_dart_token_span(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>)
-        .map(
-          dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode,
-        )
-        .toList();
-  }
-
-  @protected
-  List<TokenSpan>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>)
-        .map(
-          dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan,
-        )
-        .toList();
+    return (raw as List<dynamic>).map(dco_decode_dart_token_span).toList();
   }
 
   @protected
@@ -649,132 +544,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt dco_decode_usize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeU64(raw);
-  }
-
-  @protected
-  BlameLine
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return BlameLineImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  FileNode
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return FileNodeImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  GitFileDiff
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return GitFileDiffImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  GitStatus
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return GitStatusImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  TokenSpan
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return TokenSpanImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  BlameLine
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return BlameLineImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  FileNode
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return FileNodeImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  GitFileDiff
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return GitFileDiffImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  GitStatus
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return GitStatusImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  TokenSpan
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return TokenSpanImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -782,72 +551,152 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  CoreError sse_decode_core_error(SseDeserializer deserializer) {
+  bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var tag_ = sse_decode_i_32(deserializer);
-    switch (tag_) {
-      case 0:
-        var var_reason = sse_decode_String(deserializer);
-        return CoreError_Message(reason: var_reason);
-      default:
-        throw UnimplementedError('');
-    }
+    return deserializer.buffer.getUint8() != 0;
   }
 
   @protected
-  List<BlameLine>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
+  DartBlameLine sse_decode_dart_blame_line(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_line = sse_decode_u_32(deserializer);
+    var var_author = sse_decode_String(deserializer);
+    var var_authorTime = sse_decode_i_64(deserializer);
+    var var_summary = sse_decode_String(deserializer);
+    var var_commit = sse_decode_String(deserializer);
+    return DartBlameLine(
+      line: var_line,
+      author: var_author,
+      authorTime: var_authorTime,
+      summary: var_summary,
+      commit: var_commit,
+    );
+  }
+
+  @protected
+  DartFileNode sse_decode_dart_file_node(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_isDir = sse_decode_bool(deserializer);
+    return DartFileNode(
+      id: var_id,
+      path: var_path,
+      name: var_name,
+      isDir: var_isDir,
+    );
+  }
+
+  @protected
+  DartGitFileDiff sse_decode_dart_git_file_diff(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_commit = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_diffText = sse_decode_String(deserializer);
+    return DartGitFileDiff(
+      commit: var_commit,
+      path: var_path,
+      diffText: var_diffText,
+    );
+  }
+
+  @protected
+  DartGitStatus sse_decode_dart_git_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_staged = sse_decode_list_dart_git_status_entry(deserializer);
+    var var_unstaged = sse_decode_list_dart_git_status_entry(deserializer);
+    var var_untracked = sse_decode_list_dart_git_status_entry(deserializer);
+    return DartGitStatus(
+      staged: var_staged,
+      unstaged: var_unstaged,
+      untracked: var_untracked,
+    );
+  }
+
+  @protected
+  DartGitStatusEntry sse_decode_dart_git_status_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return DartGitStatusEntry(path: var_path, status: var_status);
+  }
+
+  @protected
+  DartTokenSpan sse_decode_dart_token_span(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_line = sse_decode_u_32(deserializer);
+    var var_startCol = sse_decode_u_32(deserializer);
+    var var_endCol = sse_decode_u_32(deserializer);
+    var var_tokenType = sse_decode_String(deserializer);
+    return DartTokenSpan(
+      line: var_line,
+      startCol: var_startCol,
+      endCol: var_endCol,
+      tokenType: var_tokenType,
+    );
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  List<DartBlameLine> sse_decode_list_dart_blame_line(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <BlameLine>[];
+    var ans_ = <DartBlameLine>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(
-        sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-          deserializer,
-        ),
-      );
+      ans_.add(sse_decode_dart_blame_line(deserializer));
     }
     return ans_;
   }
 
   @protected
-  List<FileNode>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
+  List<DartFileNode> sse_decode_list_dart_file_node(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <FileNode>[];
+    var ans_ = <DartFileNode>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(
-        sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-          deserializer,
-        ),
-      );
+      ans_.add(sse_decode_dart_file_node(deserializer));
     }
     return ans_;
   }
 
   @protected
-  List<TokenSpan>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
+  List<DartGitStatusEntry> sse_decode_list_dart_git_status_entry(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <TokenSpan>[];
+    var ans_ = <DartGitStatusEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(
-        sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-          deserializer,
-        ),
-      );
+      ans_.add(sse_decode_dart_git_status_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DartTokenSpan> sse_decode_list_dart_token_span(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DartTokenSpan>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_dart_token_span(deserializer));
     }
     return ans_;
   }
@@ -872,151 +721,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
-  }
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    BlameLine self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as BlameLineImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    FileNode self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as FileNodeImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    GitFileDiff self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as GitFileDiffImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    GitStatus self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as GitStatusImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    TokenSpan self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as TokenSpanImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    BlameLine self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as BlameLineImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    FileNode self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as FileNodeImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    GitFileDiff self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as GitFileDiffImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    GitStatus self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as GitStatusImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    TokenSpan self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as TokenSpanImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
   }
 
   @protected
@@ -1026,60 +733,128 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_core_error(CoreError self, SseSerializer serializer) {
+  void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    switch (self) {
-      case CoreError_Message(reason: final reason):
-        sse_encode_i_32(0, serializer);
-        sse_encode_String(reason, serializer);
-    }
+    serializer.buffer.putUint8(self ? 1 : 0);
   }
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    List<BlameLine> self,
+  void sse_encode_dart_blame_line(
+    DartBlameLine self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.line, serializer);
+    sse_encode_String(self.author, serializer);
+    sse_encode_i_64(self.authorTime, serializer);
+    sse_encode_String(self.summary, serializer);
+    sse_encode_String(self.commit, serializer);
+  }
+
+  @protected
+  void sse_encode_dart_file_node(DartFileNode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.isDir, serializer);
+  }
+
+  @protected
+  void sse_encode_dart_git_file_diff(
+    DartGitFileDiff self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.commit, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.diffText, serializer);
+  }
+
+  @protected
+  void sse_encode_dart_git_status(
+    DartGitStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_dart_git_status_entry(self.staged, serializer);
+    sse_encode_list_dart_git_status_entry(self.unstaged, serializer);
+    sse_encode_list_dart_git_status_entry(self.untracked, serializer);
+  }
+
+  @protected
+  void sse_encode_dart_git_status_entry(
+    DartGitStatusEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_dart_token_span(
+    DartTokenSpan self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.line, serializer);
+    sse_encode_u_32(self.startCol, serializer);
+    sse_encode_u_32(self.endCol, serializer);
+    sse_encode_String(self.tokenType, serializer);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_dart_blame_line(
+    List<DartBlameLine> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        item,
-        serializer,
-      );
+      sse_encode_dart_blame_line(item, serializer);
     }
   }
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    List<FileNode> self,
+  void sse_encode_list_dart_file_node(
+    List<DartFileNode> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        item,
-        serializer,
-      );
+      sse_encode_dart_file_node(item, serializer);
     }
   }
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    List<TokenSpan> self,
+  void sse_encode_list_dart_git_status_entry(
+    List<DartGitStatusEntry> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        item,
-        serializer,
-      );
+      sse_encode_dart_git_status_entry(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_dart_token_span(
+    List<DartTokenSpan> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_dart_token_span(item, serializer);
     }
   }
 
@@ -1106,120 +881,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
   }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
-  }
-}
-
-@sealed
-class BlameLineImpl extends RustOpaque implements BlameLine {
-  // Not to be used by end users
-  BlameLineImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  BlameLineImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_BlameLine,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_BlameLine,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_BlameLinePtr,
-  );
-}
-
-@sealed
-class FileNodeImpl extends RustOpaque implements FileNode {
-  // Not to be used by end users
-  FileNodeImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  FileNodeImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_FileNode,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_FileNode,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_FileNodePtr,
-  );
-}
-
-@sealed
-class GitFileDiffImpl extends RustOpaque implements GitFileDiff {
-  // Not to be used by end users
-  GitFileDiffImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  GitFileDiffImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_GitFileDiff,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_GitFileDiff,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_GitFileDiffPtr,
-  );
-}
-
-@sealed
-class GitStatusImpl extends RustOpaque implements GitStatus {
-  // Not to be used by end users
-  GitStatusImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  GitStatusImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_GitStatus,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_GitStatus,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_GitStatusPtr,
-  );
-}
-
-@sealed
-class TokenSpanImpl extends RustOpaque implements TokenSpan {
-  // Not to be used by end users
-  TokenSpanImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  TokenSpanImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_TokenSpan,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_TokenSpan,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_TokenSpanPtr,
-  );
 }

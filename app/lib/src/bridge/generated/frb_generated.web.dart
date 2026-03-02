@@ -8,8 +8,8 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart_api.dart';
 import 'frb_generated.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -20,109 +20,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_BlameLinePtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_FileNodePtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_GitFileDiffPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_GitStatusPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_TokenSpanPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan;
-
-  @protected
-  BlameLine
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    dynamic raw,
-  );
-
-  @protected
-  FileNode
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    dynamic raw,
-  );
-
-  @protected
-  GitFileDiff
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    dynamic raw,
-  );
-
-  @protected
-  GitStatus
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    dynamic raw,
-  );
-
-  @protected
-  TokenSpan
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    dynamic raw,
-  );
-
-  @protected
-  BlameLine
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    dynamic raw,
-  );
-
-  @protected
-  FileNode
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    dynamic raw,
-  );
-
-  @protected
-  GitFileDiff
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    dynamic raw,
-  );
-
-  @protected
-  GitStatus
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    dynamic raw,
-  );
-
-  @protected
-  TokenSpan
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    dynamic raw,
-  );
-
   @protected
   String dco_decode_String(dynamic raw);
 
   @protected
-  CoreError dco_decode_core_error(dynamic raw);
+  bool dco_decode_bool(dynamic raw);
 
   @protected
-  List<BlameLine>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    dynamic raw,
-  );
+  DartBlameLine dco_decode_dart_blame_line(dynamic raw);
 
   @protected
-  List<FileNode>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    dynamic raw,
-  );
+  DartFileNode dco_decode_dart_file_node(dynamic raw);
 
   @protected
-  List<TokenSpan>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    dynamic raw,
-  );
+  DartGitFileDiff dco_decode_dart_git_file_diff(dynamic raw);
+
+  @protected
+  DartGitStatus dco_decode_dart_git_status(dynamic raw);
+
+  @protected
+  DartGitStatusEntry dco_decode_dart_git_status_entry(dynamic raw);
+
+  @protected
+  DartTokenSpan dco_decode_dart_token_span(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<DartBlameLine> dco_decode_list_dart_blame_line(dynamic raw);
+
+  @protected
+  List<DartFileNode> dco_decode_list_dart_file_node(dynamic raw);
+
+  @protected
+  List<DartGitStatusEntry> dco_decode_list_dart_git_status_entry(dynamic raw);
+
+  @protected
+  List<DartTokenSpan> dco_decode_list_dart_token_span(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -134,89 +69,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_u_8(dynamic raw);
 
   @protected
-  BigInt dco_decode_usize(dynamic raw);
-
-  @protected
-  BlameLine
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  FileNode
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  GitFileDiff
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  GitStatus
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  TokenSpan
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  BlameLine
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  FileNode
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  GitFileDiff
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  GitStatus
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  TokenSpan
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
-  CoreError sse_decode_core_error(SseDeserializer deserializer);
+  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  List<BlameLine>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
+  DartBlameLine sse_decode_dart_blame_line(SseDeserializer deserializer);
+
+  @protected
+  DartFileNode sse_decode_dart_file_node(SseDeserializer deserializer);
+
+  @protected
+  DartGitFileDiff sse_decode_dart_git_file_diff(SseDeserializer deserializer);
+
+  @protected
+  DartGitStatus sse_decode_dart_git_status(SseDeserializer deserializer);
+
+  @protected
+  DartGitStatusEntry sse_decode_dart_git_status_entry(
     SseDeserializer deserializer,
   );
 
   @protected
-  List<FileNode>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
+  DartTokenSpan sse_decode_dart_token_span(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<DartBlameLine> sse_decode_list_dart_blame_line(
     SseDeserializer deserializer,
   );
 
   @protected
-  List<TokenSpan>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
+  List<DartFileNode> sse_decode_list_dart_file_node(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DartGitStatusEntry> sse_decode_list_dart_git_status_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DartTokenSpan> sse_decode_list_dart_token_span(
     SseDeserializer deserializer,
   );
 
@@ -230,108 +127,62 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    BlameLine self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    FileNode self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    GitFileDiff self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    GitStatus self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    TokenSpan self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    BlameLine self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    FileNode self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    GitFileDiff self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    GitStatus self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    TokenSpan self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
-  void sse_encode_core_error(CoreError self, SseSerializer serializer);
+  void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    List<BlameLine> self,
+  void sse_encode_dart_blame_line(DartBlameLine self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dart_file_node(DartFileNode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dart_git_file_diff(
+    DartGitFileDiff self,
     SseSerializer serializer,
   );
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    List<FileNode> self,
+  void sse_encode_dart_git_status(DartGitStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dart_git_status_entry(
+    DartGitStatusEntry self,
     SseSerializer serializer,
   );
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    List<TokenSpan> self,
+  void sse_encode_dart_token_span(DartTokenSpan self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_dart_blame_line(
+    List<DartBlameLine> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_dart_file_node(
+    List<DartFileNode> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_dart_git_status_entry(
+    List<DartGitStatusEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_dart_token_span(
+    List<DartTokenSpan> self,
     SseSerializer serializer,
   );
 
@@ -348,99 +199,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class
 
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-        ptr,
-      );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-        ptr,
-      );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-        ptr,
-      );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-        ptr,
-      );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-        ptr,
-      );
 }
 
 @JS('wasm_bindgen')
@@ -448,54 +213,4 @@ external RustLibWasmModule get wasmModule;
 
 @JS()
 @anonymous
-extension type RustLibWasmModule._(JSObject _) implements JSObject {
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlameLine(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFileNode(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitFileDiff(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGitStatus(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTokenSpan(
-    int ptr,
-  );
-}
+extension type RustLibWasmModule._(JSObject _) implements JSObject {}
