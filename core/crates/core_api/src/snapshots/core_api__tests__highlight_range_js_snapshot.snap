@@ -1,0 +1,17 @@
+---
+source: crates/core_api/src/lib.rs
+assertion_line: 464
+expression: formatted
+---
+- "L1:0-5 Keyword"
+- "L1:6-7 Variable"
+- "L1:8-9 Operator"
+- "L1:10-12 Number"
+- "L1:12-13 Punctuation"
+- "L2:0-3 Keyword"
+- "L2:4-5 Variable"
+- "L2:6-7 Operator"
+- "L2:8-9 Plain"
+- "L2:9-14 String"
+- "L2:14-15 Plain"
+- "L2:15-16 Punctuation"

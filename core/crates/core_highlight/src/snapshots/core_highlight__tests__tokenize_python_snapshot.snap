@@ -1,0 +1,26 @@
+---
+source: crates/core_highlight/src/lib.rs
+expression: formatted
+---
+- "L1:0-3 Keyword"
+- "L1:4-13 Variable"
+- "L1:13-14 Punctuation"
+- "L1:14-15 Variable"
+- "L1:15-16 Punctuation"
+- "L1:16-17 Operator"
+- "L2:4-6 Keyword"
+- "L2:7-8 Variable"
+- "L2:9-11 Operator"
+- "L2:12-13 Number"
+- "L2:13-14 Operator"
+- "L3:8-14 Keyword"
+- "L3:15-16 Number"
+- "L4:4-10 Keyword"
+- "L4:11-12 Variable"
+- "L4:13-14 Operator"
+- "L4:15-24 Variable"
+- "L4:24-25 Punctuation"
+- "L4:25-26 Variable"
+- "L4:27-28 Operator"
+- "L4:29-30 Number"
+- "L4:30-31 Punctuation"

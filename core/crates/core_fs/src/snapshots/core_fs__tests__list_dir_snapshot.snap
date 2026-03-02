@@ -1,0 +1,12 @@
+---
+source: crates/core_fs/src/lib.rs
+expression: snapshot
+---
+- - docs
+  - Dir
+- - src
+  - Dir
+- - Cargo.toml
+  - File
+- - README.md
+  - File

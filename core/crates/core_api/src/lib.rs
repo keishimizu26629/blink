@@ -283,4 +283,264 @@ mod tests {
         let result = git_current_branch("/tmp/nonexistent_root_for_blink".to_string());
         assert!(result.is_err());
     }
+
+    // ── open_project 追加テスト ──
+
+    #[test]
+    fn open_project_symlink_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let real_dir = tmp.path().join("real");
+        fs::create_dir(&real_dir).unwrap();
+        let link = tmp.path().join("link");
+        std::os::unix::fs::symlink(&real_dir, &link).unwrap();
+
+        let result = open_project(link.to_str().unwrap().to_string());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn open_project_empty_string() {
+        let result = open_project("".to_string());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("パスが存在しません"));
+    }
+
+    // ── read_file 追加テスト ──
+
+    #[test]
+    fn read_file_empty_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("empty.txt");
+        fs::write(&file_path, "").unwrap();
+
+        let result = read_file(file_path.to_str().unwrap().to_string());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "");
+    }
+
+    #[test]
+    fn read_file_non_utf8_returns_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("binary.bin");
+        fs::write(&file_path, &[0xFF, 0xFE, 0x00, 0x80, 0xC0]).unwrap();
+
+        let result = read_file(file_path.to_str().unwrap().to_string());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイル読み取りエラー"));
+    }
+
+    #[test]
+    fn read_file_empty_path() {
+        let result = read_file("".to_string());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイルが存在しません"));
+    }
+
+    // ── list_dir 追加テスト ──
+
+    #[test]
+    fn list_dir_empty_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_str().unwrap().to_string();
+
+        let result = list_dir(root.clone(), root);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn list_dir_deep_nesting() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let deep = root.join("a").join("b").join("c");
+        fs::create_dir_all(&deep).unwrap();
+        fs::write(deep.join("deep.txt"), "deep").unwrap();
+
+        let root_str = root.to_str().unwrap().to_string();
+        let result = list_dir(root_str.clone(), root_str);
+        assert!(result.is_ok());
+        let nodes = result.unwrap();
+        // root直下には "a" のみ
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].name, "a");
+    }
+
+    #[test]
+    fn list_dir_special_characters_in_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let special = tmp.path().join("my dir (1)");
+        fs::create_dir(&special).unwrap();
+        fs::write(special.join("file.txt"), "ok").unwrap();
+
+        let root = tmp.path().to_str().unwrap().to_string();
+        let special_str = special.to_str().unwrap().to_string();
+        let result = list_dir(root, special_str);
+        assert!(result.is_ok());
+        let nodes = result.unwrap();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].name, "file.txt");
+    }
+
+    // ── highlight_range 追加テスト ──
+
+    #[test]
+    fn highlight_range_start_line_zero() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.js");
+        fs::write(&file_path, "const x = 1;").unwrap();
+
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 0, 0);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn highlight_range_start_greater_than_end() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.js");
+        fs::write(&file_path, "const x = 1;\nlet y = 2;").unwrap();
+
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 5, 1);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn highlight_range_beyond_file_length() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.js");
+        fs::write(&file_path, "const x = 1;").unwrap();
+
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 100, 200);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn highlight_range_single_line() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("test.js");
+        fs::write(&file_path, "const a = 1;\nconst b = 2;\nconst c = 3;").unwrap();
+
+        let result = highlight_range(file_path.to_str().unwrap().to_string(), 2, 2);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        assert!(!tokens.is_empty());
+        assert!(tokens.iter().all(|t| t.line == 2));
+    }
+
+    #[test]
+    fn highlight_range_nonexistent_file_returns_error() {
+        let result = highlight_range("/nonexistent/test.js".to_string(), 1, 10);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("ファイルが存在しません"));
+    }
+
+    // ── highlight_range スナップショットテスト ──
+
+    #[test]
+    fn highlight_range_js_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("snapshot.js");
+        fs::write(&file_path, "const x = 42;\nlet y = \"hello\";").unwrap();
+
+        let tokens = highlight_range(file_path.to_str().unwrap().to_string(), 1, 2).unwrap();
+        let formatted: Vec<String> = tokens
+            .iter()
+            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .collect();
+        insta::assert_yaml_snapshot!(formatted);
+    }
+
+    #[test]
+    fn highlight_range_rust_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("snapshot.rs");
+        fs::write(&file_path, "fn main() {\n    let x: i32 = 42;\n}").unwrap();
+
+        let tokens = highlight_range(file_path.to_str().unwrap().to_string(), 1, 3).unwrap();
+        let formatted: Vec<String> = tokens
+            .iter()
+            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .collect();
+        insta::assert_yaml_snapshot!(formatted);
+    }
+
+    // ── blame_range 追加テスト ──
+
+    #[test]
+    fn blame_range_start_zero() {
+        // 実在のgitリポジトリ内ファイルで line 0 を指定 → 空結果でErr
+        let this_file = file!().to_string();
+        // file!() はクレートルートからの相対パス。絶対パスに変換
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let abs_path = format!("{}/{}", manifest_dir, this_file);
+
+        let result = blame_range(abs_path, 0, 0);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("blame_range"));
+    }
+
+    #[test]
+    fn blame_range_start_greater_than_end() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let abs_path = format!("{}/{}", manifest_dir, file!());
+
+        let result = blame_range(abs_path, 100, 1);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("blame_range"));
+    }
+
+    // ── エラー一貫性テスト ──
+
+    #[test]
+    fn error_messages_contain_path_information() {
+        let bad_path = "/some/bad/path/file.txt";
+        let result = read_file(bad_path.to_string());
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains(bad_path),
+            "Error message should contain the bad path: {err_msg}"
+        );
+
+        let bad_dir = "/some/bad/dir";
+        let result = open_project(bad_dir.to_string());
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains(bad_dir),
+            "Error message should contain the bad dir: {err_msg}"
+        );
+    }
+
+    #[test]
+    fn all_api_errors_are_core_error_message_variant() {
+        // 各APIのエラーがすべて CoreError::Message であることを確認
+        let e1 = open_project("/nonexistent".to_string()).unwrap_err();
+        assert!(matches!(e1, CoreError::Message { .. }));
+
+        let e2 = read_file("/nonexistent/file.txt".to_string()).unwrap_err();
+        assert!(matches!(e2, CoreError::Message { .. }));
+
+        let e3 = highlight_range("/nonexistent/test.js".to_string(), 1, 1).unwrap_err();
+        assert!(matches!(e3, CoreError::Message { .. }));
+
+        let e4 = blame_range("/nonexistent/file.rs".to_string(), 1, 1).unwrap_err();
+        assert!(matches!(e4, CoreError::Message { .. }));
+    }
 }

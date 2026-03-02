@@ -92,6 +92,8 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
 mod tests {
     use super::*;
     use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs as unix_fs;
 
     /// テスト用の一時ディレクトリを作成するヘルパー
     fn setup_test_dir() -> tempfile::TempDir {
@@ -246,5 +248,170 @@ mod tests {
         assert!(names.contains(&"visible.txt"));
         assert!(!names.contains(&".hidden"));
         assert!(!names.contains(&".hidden_dir"));
+    }
+
+    // ── .gitignore advanced patterns ──────────────────────────
+
+    #[test]
+    fn list_dir_gitignore_negation_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::create_dir(root.join(".git")).unwrap();
+        fs::write(root.join(".gitignore"), "*.log\n!important.log\n").unwrap();
+        fs::write(root.join("debug.log"), "").unwrap();
+        fs::write(root.join("important.log"), "").unwrap();
+        fs::write(root.join("app.txt"), "").unwrap();
+
+        let r = root.to_str().unwrap();
+        let result = list_dir(r, r).unwrap();
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+
+        assert!(!names.contains(&"debug.log"), "debug.log should be ignored");
+        assert!(
+            names.contains(&"important.log"),
+            "important.log should be kept by negation"
+        );
+        assert!(names.contains(&"app.txt"));
+    }
+
+    #[test]
+    fn list_dir_gitignore_globstar_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::create_dir(root.join(".git")).unwrap();
+        fs::write(root.join(".gitignore"), "**/node_modules\n").unwrap();
+        fs::create_dir_all(root.join("node_modules")).unwrap();
+        fs::write(root.join("node_modules/pkg.json"), "").unwrap();
+        fs::write(root.join("index.js"), "").unwrap();
+
+        let r = root.to_str().unwrap();
+        let result = list_dir(r, r).unwrap();
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+
+        assert!(
+            !names.contains(&"node_modules"),
+            "node_modules should be ignored"
+        );
+        assert!(names.contains(&"index.js"));
+    }
+
+    #[test]
+    fn list_dir_empty_gitignore() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::create_dir(root.join(".git")).unwrap();
+        fs::write(root.join(".gitignore"), "").unwrap();
+        fs::write(root.join("file_a.txt"), "").unwrap();
+        fs::write(root.join("file_b.rs"), "").unwrap();
+        fs::create_dir(root.join("src")).unwrap();
+
+        let r = root.to_str().unwrap();
+        let result = list_dir(r, r).unwrap();
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+
+        assert!(names.contains(&"src"));
+        assert!(names.contains(&"file_a.txt"));
+        assert!(names.contains(&"file_b.rs"));
+    }
+
+    #[test]
+    fn list_dir_nested_gitignore() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::create_dir(root.join(".git")).unwrap();
+        fs::write(root.join(".gitignore"), "").unwrap();
+        fs::create_dir_all(root.join("subdir")).unwrap();
+        fs::write(root.join("subdir/.gitignore"), "*.tmp\n").unwrap();
+        fs::write(root.join("subdir/keep.txt"), "").unwrap();
+        fs::write(root.join("subdir/remove.tmp"), "").unwrap();
+
+        let r = root.to_str().unwrap();
+        let sub = root.join("subdir");
+        let result = list_dir(r, sub.to_str().unwrap()).unwrap();
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+
+        assert!(names.contains(&"keep.txt"));
+        assert!(
+            !names.contains(&"remove.tmp"),
+            "remove.tmp should be ignored by nested .gitignore"
+        );
+    }
+
+    // ── Special filesystem ────────────────────────────────────
+
+    #[cfg(unix)]
+    #[test]
+    fn list_dir_symlink_in_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::create_dir(root.join("real_dir")).unwrap();
+        fs::write(root.join("real_dir/file.txt"), "").unwrap();
+        unix_fs::symlink(root.join("real_dir"), root.join("link_dir")).unwrap();
+
+        let r = root.to_str().unwrap();
+        // Should not panic
+        let result = list_dir(r, r);
+        assert!(result.is_ok(), "symlink should not cause panic");
+    }
+
+    #[test]
+    fn list_dir_unicode_filename() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::write(root.join("日本語ファイル.txt"), "内容").unwrap();
+        fs::write(root.join("normal.txt"), "").unwrap();
+
+        let r = root.to_str().unwrap();
+        let result = list_dir(r, r).unwrap();
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+
+        assert!(
+            names.contains(&"日本語ファイル.txt"),
+            "Unicode filename should appear in results"
+        );
+        assert!(names.contains(&"normal.txt"));
+    }
+
+    #[test]
+    fn list_dir_many_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        for i in 0..100 {
+            fs::write(root.join(format!("file_{i:03}.txt")), "").unwrap();
+        }
+
+        let r = root.to_str().unwrap();
+        let result = list_dir(r, r).unwrap();
+
+        assert_eq!(result.len(), 100, "all 100 files should be returned");
+
+        // Verify sort order (all files, case-insensitive name sort)
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        assert_eq!(names, sorted, "files should be sorted by name");
+    }
+
+    // ── Snapshot ──────────────────────────────────────────────
+
+    #[test]
+    fn list_dir_snapshot() {
+        let tmp = setup_test_dir();
+        let root = tmp.path().to_str().unwrap();
+
+        let result = list_dir(root, root).unwrap();
+
+        // Only snapshot name + kind (path and id change per run)
+        let snapshot: Vec<(&str, &NodeKind)> =
+            result.iter().map(|n| (n.name.as_str(), &n.kind)).collect();
+
+        insta::assert_yaml_snapshot!(snapshot);
     }
 }

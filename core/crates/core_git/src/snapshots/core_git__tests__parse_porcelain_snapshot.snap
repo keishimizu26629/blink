@@ -1,0 +1,19 @@
+---
+source: crates/core_git/src/lib.rs
+expression: result
+---
+- line: 1
+  author: Alice
+  author_time: 1700000000
+  summary: initial commit
+  commit: aaaaaaa
+- line: 2
+  author: Alice
+  author_time: 1700000000
+  summary: initial commit
+  commit: aaaaaaa
+- line: 3
+  author: Bob
+  author_time: 1700100000
+  summary: second commit
+  commit: bbbbbbb
