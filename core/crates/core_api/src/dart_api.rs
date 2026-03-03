@@ -184,9 +184,7 @@ pub fn blame_commit_diff(path: String, commit: String) -> Result<DartGitFileDiff
 
 /// ファイル差分
 pub fn git_file_diff(path: String) -> Result<DartGitFileDiff, String> {
-    crate::git_file_diff(path)
-        .map(Into::into)
-        .map_err(map_err)
+    crate::git_file_diff(path).map(Into::into).map_err(map_err)
 }
 
 /// Git status
