@@ -537,7 +537,10 @@ mod tests {
         // This test verifies multibyte strings don't cause panics and tokens are produced.
         let code = r#"let msg = "こんにちは世界";"#;
         let tokens = tokenize(code, "rust").unwrap();
-        assert!(!tokens.is_empty(), "should produce tokens for Japanese string");
+        assert!(
+            !tokens.is_empty(),
+            "should produce tokens for Japanese string"
+        );
         assert!(
             tokens.iter().any(|t| t.token_type == TokenType::Keyword),
             "should contain 'let' keyword"
@@ -705,7 +708,10 @@ mod tests {
     fn tokenize_syntax_error_in_json() {
         let code = r#"{"key": value, "missing": true}"#;
         let result = tokenize(code, "json");
-        assert!(result.is_ok(), "invalid JSON should still parse without error");
+        assert!(
+            result.is_ok(),
+            "invalid JSON should still parse without error"
+        );
         assert!(!result.unwrap().is_empty());
     }
 
@@ -717,7 +723,12 @@ mod tests {
         let tokens = tokenize(code, "javascript").unwrap();
         let formatted: Vec<String> = tokens
             .iter()
-            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .map(|t| {
+                format!(
+                    "L{}:{}-{} {:?}",
+                    t.line, t.start_col, t.end_col, t.token_type
+                )
+            })
             .collect();
         insta::assert_yaml_snapshot!(formatted);
     }
@@ -728,7 +739,12 @@ mod tests {
         let tokens = tokenize(code, "rust").unwrap();
         let formatted: Vec<String> = tokens
             .iter()
-            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .map(|t| {
+                format!(
+                    "L{}:{}-{} {:?}",
+                    t.line, t.start_col, t.end_col, t.token_type
+                )
+            })
             .collect();
         insta::assert_yaml_snapshot!(formatted);
     }
@@ -740,7 +756,12 @@ mod tests {
         let tokens = tokenize(code, "python").unwrap();
         let formatted: Vec<String> = tokens
             .iter()
-            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .map(|t| {
+                format!(
+                    "L{}:{}-{} {:?}",
+                    t.line, t.start_col, t.end_col, t.token_type
+                )
+            })
             .collect();
         insta::assert_yaml_snapshot!(formatted);
     }

@@ -1,5 +1,5 @@
-mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 pub mod dart_api;
+mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 use std::path::Path;
 
 use core_types::{BlameLine, FileNode, GitFileDiff, GitStatus, TokenSpan};
@@ -315,7 +315,7 @@ mod tests {
     fn read_file_non_utf8_returns_error() {
         let tmp = tempfile::tempdir().unwrap();
         let file_path = tmp.path().join("binary.bin");
-        fs::write(&file_path, &[0xFF, 0xFE, 0x00, 0x80, 0xC0]).unwrap();
+        fs::write(&file_path, [0xFF, 0xFE, 0x00, 0x80, 0xC0]).unwrap();
 
         let result = read_file(file_path.to_str().unwrap().to_string());
         assert!(result.is_err());
@@ -449,7 +449,12 @@ mod tests {
         let tokens = highlight_range(file_path.to_str().unwrap().to_string(), 1, 2).unwrap();
         let formatted: Vec<String> = tokens
             .iter()
-            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .map(|t| {
+                format!(
+                    "L{}:{}-{} {:?}",
+                    t.line, t.start_col, t.end_col, t.token_type
+                )
+            })
             .collect();
         insta::assert_yaml_snapshot!(formatted);
     }
@@ -463,7 +468,12 @@ mod tests {
         let tokens = highlight_range(file_path.to_str().unwrap().to_string(), 1, 3).unwrap();
         let formatted: Vec<String> = tokens
             .iter()
-            .map(|t| format!("L{}:{}-{} {:?}", t.line, t.start_col, t.end_col, t.token_type))
+            .map(|t| {
+                format!(
+                    "L{}:{}-{} {:?}",
+                    t.line, t.start_col, t.end_col, t.token_type
+                )
+            })
             .collect();
         insta::assert_yaml_snapshot!(formatted);
     }

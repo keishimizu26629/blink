@@ -1074,7 +1074,8 @@ filename lib.rs
     #[test]
     fn parse_status_porcelain_quoted_paths() {
         let repo_root = PathBuf::from("/tmp/blink-repo");
-        let input = "?? \"\\\u{0033}43\\203\\206\\\u{0033}43\\202\\271\\\u{0033}43\\203\\210.txt\"\n";
+        let input =
+            "?? \"\\\u{0033}43\\203\\206\\\u{0033}43\\202\\271\\\u{0033}43\\203\\210.txt\"\n";
         let status = parse_status_porcelain(input, &repo_root).unwrap();
         assert_eq!(status.untracked.len(), 1);
         // normalize_status_path はクォートを除去するがオクタルエスケープはデコードしない
