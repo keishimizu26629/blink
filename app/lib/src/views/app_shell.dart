@@ -11,6 +11,7 @@ import 'editor/editor_mode_bar.dart';
 import 'sidebar/project_tree_view.dart';
 import 'sidebar/sidebar_activity_bar.dart';
 import 'sidebar/source_control_view.dart';
+import 'widgets/appearance_settings.dart';
 import 'widgets/branch_status_badge.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -36,6 +37,8 @@ class _AppShellState extends ConsumerState<AppShell> {
           _AppToolbar(
             rootDirectoryName: vm.rootDirectoryName,
             onOpenFolder: () => _openFolder(vm),
+            onOpenAppearanceSettings: () =>
+                _openAppearanceSettings(context, vm),
           ),
           // Main content
           Expanded(
@@ -62,8 +65,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                                       selectedFileId: vm.selectedFile?.id,
                                       onSelectFile: (node) =>
                                           vm.selectFile(node),
-                                      onToggleDir: (node) =>
-                                          vm.toggleDir(node),
+                                      onToggleDir: (node) => vm.toggleDir(node),
                                     )
                                   : SourceControlView(
                                       status: vm.gitStatusResult,
@@ -94,9 +96,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                       ),
                     ),
                     // Detail area
-                    Expanded(
-                      child: _DetailArea(vm: vm),
-                    ),
+                    Expanded(child: _DetailArea(vm: vm)),
                   ],
                 ),
                 // Branch status badge (bottom-left overlay)
@@ -122,15 +122,39 @@ class _AppShellState extends ConsumerState<AppShell> {
       await vm.openProject(result);
     }
   }
+
+  Future<void> _openAppearanceSettings(
+    BuildContext context,
+    ProjectViewModel vm,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          child: AppearanceSettings(
+            windowOpacity: vm.windowOpacity,
+            isBringToFrontHotkeyEnabled: vm.isBringToFrontHotkeyEnabled,
+            bringToFrontShortcut: vm.bringToFrontShortcut,
+            onOpacityChanged: (value) => vm.updateWindowOpacity(value),
+            onHotkeyEnabledChanged: (value) =>
+                vm.updateBringToFrontHotkeyEnabled(value),
+            onShortcutChanged: (value) => vm.updateBringToFrontShortcut(value),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _AppToolbar extends StatelessWidget {
   final String? rootDirectoryName;
   final VoidCallback onOpenFolder;
+  final VoidCallback onOpenAppearanceSettings;
 
   const _AppToolbar({
     required this.rootDirectoryName,
     required this.onOpenFolder,
+    required this.onOpenAppearanceSettings,
   });
 
   @override
@@ -148,10 +172,20 @@ class _AppToolbar extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.create_new_folder_outlined, size: 20),
-            tooltip: 'Open Folder',
-            onPressed: onOpenFolder,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.create_new_folder_outlined, size: 20),
+                tooltip: 'Open Folder',
+                onPressed: onOpenFolder,
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, size: 20),
+                tooltip: '表示設定',
+                onPressed: onOpenAppearanceSettings,
+              ),
+            ],
           ),
         ],
       ),
@@ -187,7 +221,8 @@ class _DetailArea extends StatelessWidget {
         children: [
           EditorModeBar(
             mode: vm.editorDisplayMode,
-            canShowDiff: vm.selectedFile != null ||
+            canShowDiff:
+                vm.selectedFile != null ||
                 vm.selectedDiff != null ||
                 vm.isDiffLoading ||
                 (vm.diffErrorMessage?.isNotEmpty ?? false),
