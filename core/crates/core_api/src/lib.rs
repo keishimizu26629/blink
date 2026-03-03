@@ -315,7 +315,7 @@ mod tests {
     fn read_file_non_utf8_returns_error() {
         let tmp = tempfile::tempdir().unwrap();
         let file_path = tmp.path().join("binary.bin");
-        fs::write(&file_path, &[0xFF, 0xFE, 0x00, 0x80, 0xC0]).unwrap();
+        fs::write(&file_path, [0xFF, 0xFE, 0x00, 0x80, 0xC0]).unwrap();
 
         let result = read_file(file_path.to_str().unwrap().to_string());
         assert!(result.is_err());
