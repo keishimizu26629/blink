@@ -2,7 +2,7 @@
 
 ## プロジェクト概要
 - **プロダクト名**: Blink（Mac用超軽量コードビューア）
-- **技術スタック**: Rust Core + UniFFI + SwiftUI/AppKit
+- **技術スタック**: Rust Core + flutter_rust_bridge v2 + Flutter (macOS)
 - **アイコン**: `~/Downloads/unnamed.png`
 
 ## Docker不使用（Global CLAUDE.mdルールの上書き）
@@ -29,7 +29,23 @@ blink/
     plan/blink.md            # 実装計画
     tasks/phase{1-4}-*.md    # Phase別タスク
     coding-rules/            # コーディング規約（Codeモード時参照）
-  mac-ui/                    # SwiftUI + AppKit（Xcodeプロジェクト）
+  mac-ui/                    # Legacy Swift UI（参照用）
+  app/                       # Flutter macOS アプリ
+    lib/
+      main.dart              # エントリポイント + PlatformMenuBar + Hotkey
+      src/
+        bridge/              # FRB 生成バインディング
+          rust_api.dart      # Rust API ラッパー
+          generated/         # 自動生成コード
+        models/              # TreeNode 等
+        views/               # UI コンポーネント
+          editor/            # CodeTextView, DiffContentView
+          sidebar/           # ProjectTreeView, SourceControlView
+          widgets/           # BranchStatusBadge, AppearanceSettings
+        view_models/         # ProjectViewModel (Riverpod)
+        theme/               # SyntaxTheme, AppTheme
+    macos/                   # macOS Runner (entitlements等)
+    test/                    # Widget テスト
   core/                      # Rust workspace
     Cargo.toml
     crates/
@@ -66,6 +82,18 @@ cargo fmt --manifest-path core/Cargo.toml
 # 特定crateのテスト
 cargo test -p core_fs --manifest-path core/Cargo.toml
 cargo test -p core_api --manifest-path core/Cargo.toml
+
+# Flutter テスト
+cd app && flutter test
+
+# Flutter 解析
+cd app && flutter analyze
+
+# Flutter macOS ビルド（ビルド端末のみ）
+cd app && flutter build macos --release
+
+# FRB コード生成（ブリッジ変更時のみ）
+cd app && flutter_rust_bridge_codegen generate
 ```
 
 ## Rust コーディング規約
