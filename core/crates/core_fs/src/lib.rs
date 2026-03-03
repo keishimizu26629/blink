@@ -395,7 +395,7 @@ mod tests {
         // Verify sort order (all files, case-insensitive name sort)
         let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
         let mut sorted = names.clone();
-        sorted.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        sorted.sort_by_key(|a| a.to_lowercase());
         assert_eq!(names, sorted, "files should be sorted by name");
     }
 
