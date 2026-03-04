@@ -1,4 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
+use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
@@ -34,7 +36,7 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
 
     let walker = WalkBuilder::new(dir)
         .max_depth(Some(1))
-        .hidden(true) // ドットファイルを除外
+        .hidden(false) // ドットファイルも表示（.gitignore 判定は維持）
         .git_ignore(true)
         .git_global(false)
         .git_exclude(true)
@@ -42,6 +44,7 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
         .build();
 
     let mut nodes: Vec<FileNode> = Vec::new();
+    let mut seen_paths: HashSet<String> = HashSet::new();
 
     for entry in walker {
         let entry = entry.map_err(|e| format!("ディレクトリ読み取りエラー: {e}"))?;
@@ -64,12 +67,49 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
             NodeKind::File
         };
 
+        seen_paths.insert(path_str.clone());
         nodes.push(FileNode {
             id: path_to_id(&path_str),
             path: path_str,
             name,
             kind,
         });
+    }
+
+    // .gitignore で除外される隠しエントリ（例: .ai）を補完する。
+    // 隠しファイル/ディレクトリはユーザー操作上重要なため、列挙対象に含める。
+    let dir_entries = fs::read_dir(dir).map_err(|e| format!("ディレクトリ読み取りエラー: {e}"))?;
+    for entry in dir_entries {
+        let entry = entry.map_err(|e| format!("ディレクトリ読み取りエラー: {e}"))?;
+        let entry_path = entry.path();
+        let name = entry
+            .file_name()
+            .to_str()
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
+        if !name.starts_with('.') {
+            continue;
+        }
+
+        let path_str = entry_path.to_string_lossy().to_string();
+        if seen_paths.contains(&path_str) {
+            continue;
+        }
+
+        let kind = if entry_path.is_dir() {
+            NodeKind::Dir
+        } else {
+            NodeKind::File
+        };
+
+        nodes.push(FileNode {
+            id: path_to_id(&path_str),
+            path: path_str.clone(),
+            name,
+            kind,
+        });
+        seen_paths.insert(path_str);
     }
 
     // ソート: Dir優先 → 名前順（case insensitive）
@@ -234,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn list_dir_hidden_files_excluded() {
+    fn list_dir_hidden_files_included() {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path();
 
@@ -246,8 +286,8 @@ mod tests {
         let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
 
         assert!(names.contains(&"visible.txt"));
-        assert!(!names.contains(&".hidden"));
-        assert!(!names.contains(&".hidden_dir"));
+        assert!(names.contains(&".hidden"));
+        assert!(names.contains(&".hidden_dir"));
     }
 
     // ── .gitignore advanced patterns ──────────────────────────
@@ -295,6 +335,25 @@ mod tests {
             "node_modules should be ignored"
         );
         assert!(names.contains(&"index.js"));
+    }
+
+    #[test]
+    fn list_dir_hidden_entry_is_included_even_if_gitignored() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        fs::create_dir(root.join(".git")).unwrap();
+        fs::create_dir(root.join(".ai")).unwrap();
+        fs::write(root.join(".ai/notes.md"), "memo").unwrap();
+        fs::write(root.join(".gitignore"), ".ai/\n").unwrap();
+        fs::write(root.join("visible.txt"), "").unwrap();
+
+        let r = root.to_str().unwrap();
+        let result = list_dir(r, r).unwrap();
+        let names: Vec<&str> = result.iter().map(|n| n.name.as_str()).collect();
+
+        assert!(names.contains(&".ai"));
+        assert!(names.contains(&"visible.txt"));
     }
 
     #[test]

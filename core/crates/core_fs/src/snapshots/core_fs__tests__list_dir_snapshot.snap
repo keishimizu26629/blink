@@ -1,11 +1,16 @@
 ---
 source: crates/core_fs/src/lib.rs
+assertion_line: 415
 expression: snapshot
 ---
+- - ".git"
+  - Dir
 - - docs
   - Dir
 - - src
   - Dir
+- - ".gitignore"
+  - File
 - - Cargo.toml
   - File
 - - README.md
