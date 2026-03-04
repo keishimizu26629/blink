@@ -37,8 +37,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           _AppToolbar(
             rootDirectoryName: vm.rootDirectoryName,
             onOpenFolder: () => _openFolder(vm),
-            onOpenAppearanceSettings: () =>
-                _openAppearanceSettings(context, vm),
+            onOpenAppearanceSettings: () => _openAppearanceSettings(context),
           ),
           // Main content
           Expanded(
@@ -123,23 +122,26 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
-  Future<void> _openAppearanceSettings(
-    BuildContext context,
-    ProjectViewModel vm,
-  ) async {
+  Future<void> _openAppearanceSettings(BuildContext context) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return Dialog(
-          child: AppearanceSettings(
-            windowOpacity: vm.windowOpacity,
-            isBringToFrontHotkeyEnabled: vm.isBringToFrontHotkeyEnabled,
-            bringToFrontShortcut: vm.bringToFrontShortcut,
-            onOpacityChanged: (value) => vm.updateWindowOpacity(value),
-            onHotkeyEnabledChanged: (value) =>
-                vm.updateBringToFrontHotkeyEnabled(value),
-            onShortcutChanged: (value) => vm.updateBringToFrontShortcut(value),
-          ),
+        return Consumer(
+          builder: (context, ref, _) {
+            final vm = ref.watch(projectViewModelProvider);
+            return Dialog(
+              child: AppearanceSettings(
+                windowOpacity: vm.windowOpacity,
+                isBringToFrontHotkeyEnabled: vm.isBringToFrontHotkeyEnabled,
+                bringToFrontShortcut: vm.bringToFrontShortcut,
+                onOpacityChanged: (value) => vm.updateWindowOpacity(value),
+                onHotkeyEnabledChanged: (value) =>
+                    vm.updateBringToFrontHotkeyEnabled(value),
+                onShortcutChanged: (value) =>
+                    vm.updateBringToFrontShortcut(value),
+              ),
+            );
+          },
         );
       },
     );

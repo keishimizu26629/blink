@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -31,8 +34,9 @@ enum BringToFrontShortcut {
 // Provider
 // ---------------------------------------------------------------------------
 
-final projectViewModelProvider =
-    ChangeNotifierProvider<ProjectViewModel>((ref) {
+final projectViewModelProvider = ChangeNotifierProvider<ProjectViewModel>((
+  ref,
+) {
   return ProjectViewModel();
 });
 
@@ -123,6 +127,7 @@ class ProjectViewModel extends ChangeNotifier {
 
   /// Generation counter for highlight fetch cancellation.
   int _highlightGeneration = 0;
+  HotKey? _registeredBringToFrontHotKey;
 
   // _currentHighlightPath removed (unused, generation counter is sufficient)
   // -----------------------------------------------------------------------
@@ -157,6 +162,8 @@ class ProjectViewModel extends ChangeNotifier {
       _isBringToFrontHotkeyEnabled = true;
     }
 
+    await _applyWindowOpacity(_windowOpacity);
+    await _syncBringToFrontHotKeyRegistration();
     notifyListeners();
   }
 
@@ -172,7 +179,7 @@ class ProjectViewModel extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyWindowOpacity, clamped);
-    await windowManager.setOpacity(clamped);
+    await _applyWindowOpacity(clamped);
   }
 
   // -----------------------------------------------------------------------
@@ -186,20 +193,26 @@ class ProjectViewModel extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyBringToFrontEnabled, value);
+    await _syncBringToFrontHotKeyRegistration();
   }
 
   Future<void> toggleBringToFrontHotkeyEnabled() async {
     await updateBringToFrontHotkeyEnabled(!_isBringToFrontHotkeyEnabled);
   }
 
-  Future<void> updateBringToFrontShortcut(
-      BringToFrontShortcut shortcut) async {
+  /// Exposed for menu actions. Shares the same logic as the global hotkey.
+  Future<void> toggleBringToFrontVisibility() async {
+    await _handleBringToFrontHotKeyPressed();
+  }
+
+  Future<void> updateBringToFrontShortcut(BringToFrontShortcut shortcut) async {
     if (_bringToFrontShortcut == shortcut) return;
     _bringToFrontShortcut = shortcut;
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyBringToFrontShortcut, shortcut.name);
+    await _syncBringToFrontHotKeyRegistration();
   }
 
   // -----------------------------------------------------------------------
@@ -213,8 +226,7 @@ class ProjectViewModel extends ChangeNotifier {
 
     try {
       await RustApi.openProject(rootPath: path);
-      final fileNodes =
-          await RustApi.listDir(rootPath: path, dirPath: path);
+      final fileNodes = await RustApi.listDir(rootPath: path, dirPath: path);
       _rootNodes = fileNodes.map((n) => TreeNode(fileNode: n)).toList();
       _selectedFile = null;
       _fileContent = null;
@@ -432,8 +444,7 @@ class ProjectViewModel extends ChangeNotifier {
 
     final capturedRootPath = _rootPath;
     try {
-      final branch =
-          await RustApi.gitCurrentBranch(rootPath: capturedRootPath);
+      final branch = await RustApi.gitCurrentBranch(rootPath: capturedRootPath);
       if (capturedRootPath != _rootPath) return;
       final trimmed = branch.trim();
       _activeBranchName = trimmed.isEmpty ? null : trimmed;
@@ -453,10 +464,11 @@ class ProjectViewModel extends ChangeNotifier {
     if (_selectedFile == null || _selectedFile!.isDir) return;
     if (_totalLineCount <= 0) return;
 
-    final normalizedStart =
-        math.min(math.max(startLine, 1), _totalLineCount);
-    final normalizedEnd =
-        math.max(normalizedStart, math.min(endLine, _totalLineCount));
+    final normalizedStart = math.min(math.max(startLine, 1), _totalLineCount);
+    final normalizedEnd = math.max(
+      normalizedStart,
+      math.min(endLine, _totalLineCount),
+    );
 
     const preload = 80;
     final fetchStart = math.max(1, normalizedStart - preload);
@@ -471,8 +483,7 @@ class ProjectViewModel extends ChangeNotifier {
 
   String displayPathForSidebar(String absolutePath) {
     if (_rootPath.isEmpty) return absolutePath;
-    final normalizedRoot =
-        _rootPath.endsWith('/') ? _rootPath : '$_rootPath/';
+    final normalizedRoot = _rootPath.endsWith('/') ? _rootPath : '$_rootPath/';
     if (absolutePath.startsWith(normalizedRoot)) {
       return absolutePath.substring(normalizedRoot.length);
     }
@@ -524,24 +535,29 @@ class ProjectViewModel extends ChangeNotifier {
 
     final capturedPath = path;
     RustApi.highlightRange(
-      path: capturedPath,
-      startLine: 1,
-      endLine: totalLines,
-    ).then((tokens) {
-      if (_selectedFile?.path != capturedPath) return;
-      _diffHighlightTokens = tokens;
-      notifyListeners();
-    }).catchError((_) {
-      // Silently ignore highlight errors for diff tokens.
-    });
+          path: capturedPath,
+          startLine: 1,
+          endLine: totalLines,
+        )
+        .then((tokens) {
+          if (_selectedFile?.path != capturedPath) return;
+          _diffHighlightTokens = tokens;
+          notifyListeners();
+        })
+        .catchError((_) {
+          // Silently ignore highlight errors for diff tokens.
+        });
   }
 
   // -----------------------------------------------------------------------
   // Private: fetchVisibleRangeIfNeeded (with generation-based cancellation)
   // -----------------------------------------------------------------------
 
-  void _fetchVisibleRangeIfNeeded(int fetchStart, int fetchEnd,
-      {required bool forceRefresh}) {
+  void _fetchVisibleRangeIfNeeded(
+    int fetchStart,
+    int fetchEnd, {
+    required bool forceRefresh,
+  }) {
     final path = _selectedFile?.path;
     if (path == null) return;
 
@@ -551,19 +567,17 @@ class ProjectViewModel extends ChangeNotifier {
     _currentVisibleRange = range;
     _highlightGeneration++;
     final generation = _highlightGeneration;
-    RustApi.highlightRange(
-      path: path,
-      startLine: fetchStart,
-      endLine: fetchEnd,
-    ).then((tokens) {
-      // Check if this fetch is still relevant.
-      if (_highlightGeneration != generation) return;
-      if (_selectedFile?.path != path) return;
-      _highlightTokens = tokens;
-      notifyListeners();
-    }).catchError((_) {
-      // Silently ignore; stale/cancelled highlight requests are expected.
-    });
+    RustApi.highlightRange(path: path, startLine: fetchStart, endLine: fetchEnd)
+        .then((tokens) {
+          // Check if this fetch is still relevant.
+          if (_highlightGeneration != generation) return;
+          if (_selectedFile?.path != path) return;
+          _highlightTokens = tokens;
+          notifyListeners();
+        })
+        .catchError((_) {
+          // Silently ignore; stale/cancelled highlight requests are expected.
+        });
   }
 
   // -----------------------------------------------------------------------
@@ -571,7 +585,9 @@ class ProjectViewModel extends ChangeNotifier {
   // -----------------------------------------------------------------------
 
   Future<List<TreeNode>> _toggleNodeInTree(
-      List<TreeNode> nodes, String targetId) async {
+    List<TreeNode> nodes,
+    String targetId,
+  ) async {
     final result = <TreeNode>[];
     for (final treeNode in nodes) {
       if (treeNode.id == targetId) {
@@ -590,8 +606,10 @@ class ProjectViewModel extends ChangeNotifier {
         }
         result.add(treeNode);
       } else if (treeNode.isDir && treeNode.children != null) {
-        treeNode.children =
-            await _toggleNodeInTree(treeNode.children!, targetId);
+        treeNode.children = await _toggleNodeInTree(
+          treeNode.children!,
+          targetId,
+        );
         result.add(treeNode);
       } else {
         result.add(treeNode);
@@ -620,8 +638,7 @@ class ProjectViewModel extends ChangeNotifier {
   // -----------------------------------------------------------------------
 
   DartGitStatus _filterGitStatus(DartGitStatus status, String rootPath) {
-    final normalizedRoot =
-        rootPath.endsWith('/') ? rootPath : '$rootPath/';
+    final normalizedRoot = rootPath.endsWith('/') ? rootPath : '$rootPath/';
     bool inRoot(DartGitStatusEntry entry) =>
         entry.path == rootPath || entry.path.startsWith(normalizedRoot);
 
@@ -639,6 +656,90 @@ class ProjectViewModel extends ChangeNotifier {
   static double _clampOpacity(double value) =>
       math.max(0.6, math.min(1.0, value));
 
+  Future<void> _applyWindowOpacity(double value) async {
+    try {
+      await windowManager.setOpacity(value);
+    } catch (_) {
+      // Ignore window-manager failures to keep initialization resilient.
+    }
+  }
+
+  Future<void> _syncBringToFrontHotKeyRegistration() async {
+    final previous = _registeredBringToFrontHotKey;
+    if (previous != null) {
+      try {
+        await hotKeyManager.unregister(previous);
+      } catch (_) {
+        // Ignore unregister failures and continue with re-registration.
+      }
+      _registeredBringToFrontHotKey = null;
+    }
+
+    if (!_isBringToFrontHotkeyEnabled) return;
+
+    final hotKey = _buildBringToFrontHotKey(_bringToFrontShortcut);
+    try {
+      await hotKeyManager.register(
+        hotKey,
+        keyDownHandler: (_) {
+          unawaited(_handleBringToFrontHotKeyPressed());
+        },
+      );
+      _registeredBringToFrontHotKey = hotKey;
+    } catch (_) {
+      // Keep app usable even when global hotkey registration fails.
+    }
+  }
+
+  HotKey _buildBringToFrontHotKey(BringToFrontShortcut shortcut) {
+    return HotKey(
+      key: PhysicalKeyboardKey.space,
+      modifiers: _hotKeyModifiersForShortcut(shortcut),
+      scope: HotKeyScope.system,
+    );
+  }
+
+  List<HotKeyModifier> _hotKeyModifiersForShortcut(
+    BringToFrontShortcut shortcut,
+  ) {
+    switch (shortcut) {
+      case BringToFrontShortcut.shiftOptionSpace:
+        return const [HotKeyModifier.shift, HotKeyModifier.alt];
+      case BringToFrontShortcut.commandShiftSpace:
+        return const [HotKeyModifier.meta, HotKeyModifier.shift];
+      case BringToFrontShortcut.commandOptionSpace:
+        return const [HotKeyModifier.meta, HotKeyModifier.alt];
+      case BringToFrontShortcut.controlOptionSpace:
+        return const [HotKeyModifier.control, HotKeyModifier.alt];
+    }
+  }
+
+  Future<void> _handleBringToFrontHotKeyPressed() async {
+    try {
+      final focused = await windowManager.isFocused();
+      final visible = await windowManager.isVisible();
+      final minimized = await windowManager.isMinimized();
+
+      // Toggle off when currently frontmost.
+      if (focused && visible && !minimized) {
+        await windowManager.minimize();
+        return;
+      }
+
+      if (minimized) {
+        await windowManager.restore();
+      }
+
+      if (!visible) {
+        await windowManager.show();
+      }
+      await windowManager.focus();
+    } catch (e) {
+      // Keep app alive even if window manager APIs fail in transient states.
+      debugPrint('Bring-to-front hotkey handling failed: $e');
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Private: displayRootDirectoryName
   // -----------------------------------------------------------------------
@@ -648,5 +749,15 @@ class ProjectViewModel extends ChangeNotifier {
     if (normalized.isEmpty) return '';
     final lastComponent = normalized.split('/').last;
     return lastComponent.isEmpty ? normalized : lastComponent;
+  }
+
+  @override
+  void dispose() {
+    final hotKey = _registeredBringToFrontHotKey;
+    if (hotKey != null) {
+      unawaited(hotKeyManager.unregister(hotKey));
+      _registeredBringToFrontHotKey = null;
+    }
+    super.dispose();
   }
 }
