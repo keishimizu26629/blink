@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import '../bridge/generated/dart_api.dart';
 import '../bridge/rust_api.dart';
 import '../models/tree_node.dart';
+import '../utils/path_utils.dart' as path_utils;
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -322,7 +323,7 @@ class ProjectViewModel extends ChangeNotifier {
     }
 
     // Fallback: create an ad-hoc node.
-    final name = path.split('/').last;
+    final name = path_utils.displayRootDirectoryName(path);
     final fallbackNode = TreeNode(
       fileNode: DartFileNode(
         id: 'git:$path',
@@ -482,12 +483,10 @@ class ProjectViewModel extends ChangeNotifier {
   // -----------------------------------------------------------------------
 
   String displayPathForSidebar(String absolutePath) {
-    if (_rootPath.isEmpty) return absolutePath;
-    final normalizedRoot = _rootPath.endsWith('/') ? _rootPath : '$_rootPath/';
-    if (absolutePath.startsWith(normalizedRoot)) {
-      return absolutePath.substring(normalizedRoot.length);
-    }
-    return absolutePath;
+    return path_utils.displayPathForSidebar(
+      absolutePath: absolutePath,
+      rootPath: _rootPath,
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -598,8 +597,9 @@ class ProjectViewModel extends ChangeNotifier {
               rootPath: _rootPath,
               dirPath: treeNode.path,
             );
-            treeNode.children =
-                fileNodes.map((n) => TreeNode(fileNode: n)).toList();
+            treeNode.children = fileNodes
+                .map((n) => TreeNode(fileNode: n))
+                .toList();
           } catch (_) {
             treeNode.children = [];
           }
@@ -638,9 +638,8 @@ class ProjectViewModel extends ChangeNotifier {
   // -----------------------------------------------------------------------
 
   DartGitStatus _filterGitStatus(DartGitStatus status, String rootPath) {
-    final normalizedRoot = rootPath.endsWith('/') ? rootPath : '$rootPath/';
     bool inRoot(DartGitStatusEntry entry) =>
-        entry.path == rootPath || entry.path.startsWith(normalizedRoot);
+        path_utils.isPathInRoot(path: entry.path, rootPath: rootPath);
 
     return DartGitStatus(
       staged: status.staged.where(inRoot).toList(),
@@ -745,10 +744,7 @@ class ProjectViewModel extends ChangeNotifier {
   // -----------------------------------------------------------------------
 
   String _displayRootDirectoryName(String path) {
-    final normalized = path.trim();
-    if (normalized.isEmpty) return '';
-    final lastComponent = normalized.split('/').last;
-    return lastComponent.isEmpty ? normalized : lastComponent;
+    return path_utils.displayRootDirectoryName(path);
   }
 
   @override

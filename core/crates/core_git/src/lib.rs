@@ -14,7 +14,7 @@ fn diff_cache() -> &'static Mutex<HashMap<String, GitFileDiff>> {
     DIFF_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 static GIT_BINARY_PATH: OnceLock<String> = OnceLock::new();
 
 #[cfg(target_os = "macos")]
@@ -34,6 +34,33 @@ fn resolve_git_binary_path() -> String {
         .to_string()
 }
 
+#[cfg(target_os = "windows")]
+fn resolve_git_binary_path() -> String {
+    let candidates = [
+        r"C:\Program Files\Git\bin\git.exe",
+        r"C:\Program Files\Git\cmd\git.exe",
+        r"C:\Program Files (x86)\Git\bin\git.exe",
+        r"C:\Program Files (x86)\Git\cmd\git.exe",
+    ];
+
+    candidates
+        .iter()
+        .find(|path| fs::metadata(path).map(|m| m.is_file()).unwrap_or(false))
+        .unwrap_or(&"git")
+        .to_string()
+}
+
+fn null_device_path() -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        "NUL"
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        "/dev/null"
+    }
+}
+
 fn git_command() -> Command {
     #[cfg(target_os = "macos")]
     {
@@ -47,7 +74,15 @@ fn git_command() -> Command {
         command.env_remove("SDKROOT");
         command
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Command::new(
+            GIT_BINARY_PATH
+                .get_or_init(resolve_git_binary_path)
+                .as_str(),
+        )
+    }
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
     {
         Command::new("git")
     }
@@ -267,7 +302,7 @@ pub fn git_file_diff(file_path: &str) -> Result<GitFileDiff, String> {
                     "--no-color",
                     "--no-index",
                     "--",
-                    "/dev/null",
+                    null_device_path(),
                     &absolute_path_text,
                 ])
                 .output()
@@ -1110,6 +1145,14 @@ filename lib.rs
         assert_eq!(status.staged[0].status, "A ");
         assert!(status.unstaged.is_empty());
         assert!(status.untracked.is_empty());
+    }
+
+    #[test]
+    fn null_device_path_matches_platform() {
+        #[cfg(target_os = "windows")]
+        assert_eq!(null_device_path(), "NUL");
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(null_device_path(), "/dev/null");
     }
 
     // ── Cache behavior ─────────────────────────────────────

@@ -14,6 +14,10 @@ fn path_to_id(path: &str) -> String {
     format!("{:016x}", hasher.finish())[..8].to_string()
 }
 
+fn normalize_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
 /// 指定ディレクトリ直下のファイル・ディレクトリ一覧を返す。
 /// .gitignore に記載されたパスは除外される。
 ///
@@ -60,7 +64,7 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
-        let path_str = entry_path.to_string_lossy().to_string();
+        let path_str = normalize_path(entry_path);
         let kind = if entry_path.is_dir() {
             NodeKind::Dir
         } else {
@@ -92,7 +96,7 @@ pub fn list_dir(root_path: &str, dir_path: &str) -> Result<Vec<FileNode>, String
             continue;
         }
 
-        let path_str = entry_path.to_string_lossy().to_string();
+        let path_str = normalize_path(&entry_path);
         if seen_paths.contains(&path_str) {
             continue;
         }
@@ -256,6 +260,12 @@ mod tests {
         let id1 = path_to_id("/path/a");
         let id2 = path_to_id("/path/b");
         assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn normalize_path_converts_backslashes() {
+        let p = Path::new(r"C:\work\blink\src\main.rs");
+        assert_eq!(normalize_path(p), "C:/work/blink/src/main.rs");
     }
 
     #[test]

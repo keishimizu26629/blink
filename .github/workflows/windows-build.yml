@@ -1,0 +1,146 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "ビルドするブランチ（未指定なら実行時のref）"
+        required: false
+        type: string
+        default: ""
+      tag_name:
+        description: "リリース用タグ名（未指定時は dev-<shortsha>）"
+        required: false
+        type: string
+        default: ""
+      create_release:
+        description: "GitHub Release を作成する"
+        required: false
+        type: boolean
+        default: false
+      upload_drive:
+        description: "Google Drive へアップロードする"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\.cargo\registry
+            ~\.cargo\git
+            core\target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('core/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.3"
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build Rust core_api (release)
+        working-directory: core
+        run: cargo build -p core_api --release
+
+      - name: Build Flutter Windows (release)
+        working-directory: app
+        run: flutter build windows --release
+
+      - name: Set artifact names
+        shell: pwsh
+        run: |
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $inputTag = "${{ inputs.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($inputTag)) {
+            $tagName = "dev-$shortSha"
+          } else {
+            $tagName = $inputTag
+          }
+          $zipName = "Blink_windows_$tagName.zip"
+          "TAG_NAME=$tagName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Package build artifacts
+        shell: pwsh
+        run: |
+          $releaseDir = "app/build/windows/x64/runner/Release"
+          if (-not (Test-Path $releaseDir)) {
+            throw "Release directory not found: $releaseDir"
+          }
+          Compress-Archive -Path "$releaseDir/*" -DestinationPath "$env:ZIP_NAME" -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blink-windows
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Install rclone
+        if: ${{ inputs.upload_drive }}
+        run: choco install rclone -y --no-progress
+
+      - name: Configure rclone
+        if: ${{ inputs.upload_drive }}
+        shell: pwsh
+        env:
+          RCLONE_DRIVE_TOKEN: ${{ secrets.RCLONE_DRIVE_TOKEN }}
+        run: |
+          $configDir = Join-Path $env:APPDATA "rclone"
+          New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+          $configPath = Join-Path $configDir "rclone.conf"
+          @"
+[gdrive]
+type = drive
+scope = drive
+token = $env:RCLONE_DRIVE_TOKEN
+"@ | Set-Content -Path $configPath -Encoding UTF8
+
+      - name: Upload to Google Drive
+        if: ${{ inputs.upload_drive }}
+        shell: pwsh
+        env:
+          GDRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: |
+          rclone copyto "$env:ZIP_NAME" "gdrive:/$env:ZIP_NAME" --drive-root-folder-id="$env:GDRIVE_FOLDER_ID" -v
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          target_commitish: ${{ github.sha }}
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+
+      - name: Cleanup credentials
+        if: ${{ always() && inputs.upload_drive }}
+        shell: pwsh
+        run: |
+          $configPath = Join-Path (Join-Path $env:APPDATA "rclone") "rclone.conf"
+          if (Test-Path $configPath) {
+            Remove-Item $configPath -Force
+          }
