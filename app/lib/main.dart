@@ -37,75 +37,9 @@ class BlinkApp extends ConsumerStatefulWidget {
 }
 
 class _BlinkAppState extends ConsumerState<BlinkApp> {
-  HotKey? _registeredHotKey;
-
-  @override
-  void initState() {
-    super.initState();
-    // Defer hotkey registration to after first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncHotKey();
-    });
-  }
-
-  @override
-  void dispose() {
-    _unregisterHotKey();
-    super.dispose();
-  }
-
-  Future<void> _syncHotKey() async {
-    final vm = ref.read(projectViewModelProvider);
-    await _unregisterHotKey();
-
-    if (!vm.isBringToFrontHotkeyEnabled) return;
-
-    final modifiers = switch (vm.bringToFrontShortcut) {
-      BringToFrontShortcut.shiftOptionSpace => [HotKeyModifier.shift, HotKeyModifier.alt],
-      BringToFrontShortcut.commandShiftSpace => [HotKeyModifier.meta, HotKeyModifier.shift],
-      BringToFrontShortcut.commandOptionSpace => [HotKeyModifier.meta, HotKeyModifier.alt],
-      BringToFrontShortcut.controlOptionSpace => [HotKeyModifier.control, HotKeyModifier.alt],
-    };
-
-    final hotKey = HotKey(
-      key: PhysicalKeyboardKey.space,
-      modifiers: modifiers,
-      scope: HotKeyScope.system,
-    );
-
-    await hotKeyManager.register(hotKey, keyDownHandler: (_) => _toggleAppVisibility());
-    _registeredHotKey = hotKey;
-  }
-
-  Future<void> _unregisterHotKey() async {
-    if (_registeredHotKey != null) {
-      await hotKeyManager.unregister(_registeredHotKey!);
-      _registeredHotKey = null;
-    }
-  }
-
-  Future<void> _toggleAppVisibility() async {
-    final isFocused = await windowManager.isFocused();
-    final isVisible = await windowManager.isVisible();
-
-    if (isFocused && isVisible) {
-      await windowManager.hide();
-    } else {
-      await windowManager.show();
-      await windowManager.focus();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Watch for hotkey setting changes
-    ref.watch(projectViewModelProvider);
-    ref.listen(projectViewModelProvider, (previous, next) {
-      if (previous?.isBringToFrontHotkeyEnabled != next.isBringToFrontHotkeyEnabled ||
-          previous?.bringToFrontShortcut != next.bringToFrontShortcut) {
-        _syncHotKey();
-      }
-    });
+    final vm = ref.watch(projectViewModelProvider);
 
     return PlatformMenuBar(
       menus: [
@@ -132,7 +66,7 @@ class _BlinkAppState extends ConsumerState<BlinkApp> {
           menus: [
             PlatformMenuItem(
               label: '最前面に表示',
-              onSelected: _toggleAppVisibility,
+              onSelected: vm.toggleBringToFrontVisibility,
             ),
           ],
         ),

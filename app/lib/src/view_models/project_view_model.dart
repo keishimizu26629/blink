@@ -200,6 +200,11 @@ class ProjectViewModel extends ChangeNotifier {
     await updateBringToFrontHotkeyEnabled(!_isBringToFrontHotkeyEnabled);
   }
 
+  /// Exposed for menu actions. Shares the same logic as the global hotkey.
+  Future<void> toggleBringToFrontVisibility() async {
+    await _handleBringToFrontHotKeyPressed();
+  }
+
   Future<void> updateBringToFrontShortcut(BringToFrontShortcut shortcut) async {
     if (_bringToFrontShortcut == shortcut) return;
     _bringToFrontShortcut = shortcut;
@@ -712,23 +717,26 @@ class ProjectViewModel extends ChangeNotifier {
   Future<void> _handleBringToFrontHotKeyPressed() async {
     try {
       final focused = await windowManager.isFocused();
-      if (focused) {
+      final visible = await windowManager.isVisible();
+      final minimized = await windowManager.isMinimized();
+
+      // Toggle off when currently frontmost.
+      if (focused && visible && !minimized) {
         await windowManager.minimize();
         return;
       }
 
-      final minimized = await windowManager.isMinimized();
       if (minimized) {
         await windowManager.restore();
       }
 
-      final visible = await windowManager.isVisible();
       if (!visible) {
         await windowManager.show();
       }
       await windowManager.focus();
-    } catch (_) {
-      // Ignore runtime window-manager errors in global hotkey handler.
+    } catch (e) {
+      // Keep app alive even if window manager APIs fail in transient states.
+      debugPrint('Bring-to-front hotkey handling failed: $e');
     }
   }
 
