@@ -128,6 +128,8 @@ class ProjectViewModel extends ChangeNotifier {
   /// Generation counter for highlight fetch cancellation.
   int _highlightGeneration = 0;
   HotKey? _registeredBringToFrontHotKey;
+  bool _isBringToFrontToggleInProgress = false;
+  DateTime? _lastBringToFrontToggleAt;
 
   // _currentHighlightPath removed (unused, generation counter is sufficient)
   // -----------------------------------------------------------------------
@@ -598,8 +600,9 @@ class ProjectViewModel extends ChangeNotifier {
               rootPath: _rootPath,
               dirPath: treeNode.path,
             );
-            treeNode.children =
-                fileNodes.map((n) => TreeNode(fileNode: n)).toList();
+            treeNode.children = fileNodes
+                .map((n) => TreeNode(fileNode: n))
+                .toList();
           } catch (_) {
             treeNode.children = [];
           }
@@ -715,6 +718,18 @@ class ProjectViewModel extends ChangeNotifier {
   }
 
   Future<void> _handleBringToFrontHotKeyPressed() async {
+    final now = DateTime.now();
+    final last = _lastBringToFrontToggleAt;
+    if (last != null &&
+        now.difference(last) < const Duration(milliseconds: 220)) {
+      return;
+    }
+    if (_isBringToFrontToggleInProgress) {
+      return;
+    }
+    _isBringToFrontToggleInProgress = true;
+    _lastBringToFrontToggleAt = now;
+
     try {
       final focused = await windowManager.isFocused();
       final visible = await windowManager.isVisible();
@@ -726,17 +741,18 @@ class ProjectViewModel extends ChangeNotifier {
         return;
       }
 
-      if (minimized) {
-        await windowManager.restore();
-      }
-
       if (!visible) {
         await windowManager.show();
+      }
+      if (minimized) {
+        await windowManager.restore();
       }
       await windowManager.focus();
     } catch (e) {
       // Keep app alive even if window manager APIs fail in transient states.
       debugPrint('Bring-to-front hotkey handling failed: $e');
+    } finally {
+      _isBringToFrontToggleInProgress = false;
     }
   }
 
